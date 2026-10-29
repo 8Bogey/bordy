@@ -24,9 +24,12 @@ npm run db:init           # تطبيق schema.sql على D1 المحلي
 
 ## تغييرات قاعدة البيانات
 
+- **CI لا يطبّق migrations** — ينشر الكود فقط. إن نشرت كوداً يعتمد جدولاً جديداً قبل تطبيقه عن بعد، كل مسار يستخدمه يفشل بـ `SQLITE_ERROR` (حدث فعلاً مع `/v2`).
 - عدّل `schema.sql` وأضف ملفاً في `bordy-license/migrations/` (`000N_وصف.sql`).
 - طبّق محلياً ثم عن بعد:
-  `npx wrangler d1 execute bordy-license --remote --file=migrations/000N_*.sql`
+  `npx wrangler d1 execute bordy-license --remote --yes --file=migrations/000N_*.sql`
+- قبل التطبيق عن بعد: خذ bookmark للرجوع الزمني
+  (`GET /accounts/{id}/d1/database/{db_id}/time_travel/bookmark`) وتأكد أن العبارات إضافية فقط (`CREATE`/`ALTER ADD COLUMN`)، وأن `ALTER` لن يُكرَّر (SQLite لا يدعم `IF NOT EXISTS` للأعمدة).
 - لا تحذف أعمدة/جداول مستخدمة من نسخة تطبيق منشورة.
 
 ## أسرار
