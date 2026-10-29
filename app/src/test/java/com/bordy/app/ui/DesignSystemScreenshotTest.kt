@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.bordy.app.ui.components.BrandButton
 import com.bordy.app.ui.components.EmptyState
 import com.bordy.app.ui.theme.BordyTheme
+import com.github.takahirom.roborazzi.RoborazziOptions
 import com.github.takahirom.roborazzi.captureRoboImage
 import org.junit.Rule
 import org.junit.Test
@@ -40,6 +41,11 @@ class DesignSystemScreenshotTest {
     @get:Rule
     val composeRule = createComposeRule()
 
+    // رسم الخطوط يختلف قليلاً بين Windows وLinux؛ العتبة تسمح بذلك وتمسك التغيّر البنيوي
+    private val options = RoborazziOptions(
+        compareOptions = RoborazziOptions.CompareOptions(changeThreshold = 0.03f),
+    )
+
     @Test
     fun brandButton_states() {
         composeRule.setContent {
@@ -56,7 +62,7 @@ class DesignSystemScreenshotTest {
                 }
             }
         }
-        composeRule.onRoot().captureRoboImage("src/test/screenshots/brand_button.png")
+        composeRule.onRoot().captureRoboImage("src/test/screenshots/brand_button.png", roborazziOptions = options)
     }
 
     @Test
@@ -71,6 +77,6 @@ class DesignSystemScreenshotTest {
                 }
             }
         }
-        composeRule.onRoot().captureRoboImage("src/test/screenshots/empty_state.png")
+        composeRule.onRoot().captureRoboImage("src/test/screenshots/empty_state.png", roborazziOptions = options)
     }
 }

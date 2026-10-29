@@ -42,6 +42,14 @@ jobs:
       - name: Build, lint and test
         run: bash ./gradlew :app:assembleDebug :app:lintDebug :app:testDebugUnitTest :app:verifyRoborazziDebug --no-daemon --console=plain
 
+      - name: Show failure details
+        if: failure()
+        run: |
+          for f in app/build/test-results/testDebugUnitTest/*.xml; do
+            [ -e "$f" ] || continue
+            grep -B2 -A12 "<failure" "$f" || true
+          done
+
       - name: Upload screenshot diffs
         if: failure()
         uses: actions/upload-artifact@v4
