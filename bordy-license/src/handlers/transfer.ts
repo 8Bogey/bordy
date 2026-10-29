@@ -1,18 +1,14 @@
 import { Env } from '../types';
 import { getDevice, logEvent, getSettings } from '../db';
 import { isValidDeviceId, jsonResponse, errorResponse, parseJsonBody, timingSafeEqualString } from '../utils';
-
-interface TransferInput {
-  from_did: string;
-  to_did: string;
-  admin_secret?: string;
-}
+import { transferBodySchema } from '../validate';
 
 export async function handleTransferRequest(request: Request, env: Env): Promise<Response> {
-  const body = await parseJsonBody<TransferInput>(request);
-  if (!body || !body.from_did || !body.to_did) {
+  const parsed = transferBodySchema.safeParse(await parseJsonBody(request));
+  if (!parsed.success) {
     return errorResponse('بيانات التحويل غير مكتملة', 400, 'MISSING_FIELDS');
   }
+  const body = parsed.data;
 
   // Moving a subscription is an owner decision: without proof of ownership of the
   // source device this endpoint would let anyone drain another user's license.

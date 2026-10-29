@@ -2,28 +2,19 @@ import { Env, CodeRow } from '../types';
 import { getDevice, getCode, getCodeDeviceUsage, logEvent, getSettings } from '../db';
 import { isValidDeviceId, normalizeCode, jsonResponse, errorResponse, parseJsonBody, timingSafeEqualString } from '../utils';
 import { checkRateLimit } from '../rate-limit';
+import { checkCodeBodySchema, redeemBodySchema } from '../validate';
 import { getPrivateKey, signToken } from '../crypto';
 import { buildTokenPayload } from './activate';
-
-interface CheckCodeInput {
-  did: string;
-  code: string;
-  plan_id?: string;
-}
-
-interface RedeemInput {
-  did: string;
-  code: string;
-}
 
 /**
  * POST /v1/codes/check — Validate a code without reserving it.
  */
 export async function handleCheckCode(request: Request, env: Env): Promise<Response> {
-  const body = await parseJsonBody<CheckCodeInput>(request);
-  if (!body || !body.did || !body.code) {
+  const parsed = checkCodeBodySchema.safeParse(await parseJsonBody(request));
+  if (!parsed.success) {
     return errorResponse('Missing required fields');
   }
+  const body = parsed.data;
 
   if (!isValidDeviceId(body.did)) {
     return errorResponse('Invalid device ID');
@@ -72,10 +63,11 @@ export async function handleCheckCode(request: Request, env: Env): Promise<Respo
  * POST /v1/redeem — Redeem a FREE_DAYS code directly.
  */
 export async function handleRedeem(request: Request, env: Env): Promise<Response> {
-  const body = await parseJsonBody<RedeemInput>(request);
-  if (!body || !body.did || !body.code) {
+  const parsed = redeemBodySchema.safeParse(await parseJsonBody(request));
+  if (!parsed.success) {
     return errorResponse('Missing required fields');
   }
+  const body = parsed.data;
 
   if (!isValidDeviceId(body.did)) {
     return errorResponse('Invalid device ID');

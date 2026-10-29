@@ -14,26 +14,7 @@ import {
   jsonResponse, errorResponse, parseJsonBody, formatBaghdadTime,
   parsePaymentMethods,
 } from '../utils';
-
-interface CreateOrderInput {
-  did: string;
-  plan_id: string;
-  code?: string;
-  method?: string;
-  payer_name?: string;
-  payer_phone?: string;
-}
-
-interface SubmitProofInput {
-  did: string;
-  method: string;
-  txn_ref?: string;
-  payer_name?: string;
-  payer_phone?: string;
-  proof_data?: string;   // base64 image (preferred key)
-  image?: string;        // legacy alias sent by older app versions
-  proof_mime?: string;
-}
+import { cancelOrderBodySchema, createOrderBodySchema, submitProofBodySchema } from '../validate';
 
 const MAX_PROOF_BYTES = 2 * 1024 * 1024;
 const ALLOWED_PROOF_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
@@ -170,10 +151,11 @@ async function notifyNewOrder(env: Env, order: OrderRow): Promise<void> {
  * POST /v1/orders — Create a new order.
  */
 export async function handleCreateOrder(request: Request, env: Env): Promise<Response> {
-  const body = await parseJsonBody<CreateOrderInput>(request);
-  if (!body || !body.did || !body.plan_id) {
+  const parsed = createOrderBodySchema.safeParse(await parseJsonBody(request));
+  if (!parsed.success) {
     return errorResponse('بيانات الطلب غير مكتملة', 400, 'MISSING_FIELDS');
   }
+  const body = parsed.data;
 
   if (!isValidDeviceId(body.did)) {
     return errorResponse('معرّف الجهاز غير صالح', 400, 'INVALID_DEVICE');
@@ -344,10 +326,11 @@ export async function handleCreateOrder(request: Request, env: Env): Promise<Res
  * POST /v1/orders/:id/proof — Submit payment proof.
  */
 export async function handleSubmitProof(request: Request, env: Env, orderId: string): Promise<Response> {
-  const body = await parseJsonBody<SubmitProofInput>(request);
-  if (!body || !body.did) {
+  const parsed = submitProofBodySchema.safeParse(await parseJsonBody(request));
+  if (!parsed.success) {
     return errorResponse('بيانات الإيصال غير مكتملة', 400, 'MISSING_FIELDS');
   }
+  const body = parsed.data;
 
   const order = await getOrder(env.DB, orderId);
   if (!order) {
@@ -552,10 +535,11 @@ export async function handleGetOrder(request: Request, env: Env, orderId: string
  * POST /v1/orders/:id/cancel — Cancel a pending order.
  */
 export async function handleCancelOrder(request: Request, env: Env, orderId: string): Promise<Response> {
-  const body = await parseJsonBody<{ did?: string }>(request);
-  if (!body || !body.did) {
+  const parsed = cancelOrderBodySchema.safeParse(await parseJsonBody(request));
+  if (!parsed.success) {
     return errorResponse('معرّف الجهاز مطلوب', 403, 'FORBIDDEN');
   }
+  const body = parsed.data;
 
   const order = await getOrder(env.DB, orderId);
   if (!order) {
