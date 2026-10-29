@@ -435,7 +435,10 @@ export async function handleSyncPush(request: Request, env: Env): Promise<Respon
   if (!body || !Array.isArray(body.operations)) return errorResponse('طلب مزامنة غير صالح', 400, 'VALIDATION_FAILED');
   if (body.account_epoch !== auth.account.account_epoch) return errorResponse('تغيّر جيل الحساب', 409, 'ACCOUNT_EPOCH_CHANGED');
   if (body.device_epoch !== auth.device.device_epoch) return errorResponse('تغيّر جيل الجهاز', 409, 'DEVICE_EPOCH_CHANGED');
-  if (body.client_schema_version < auth.account.data_schema_version) {
+  // A missing field compares as undefined < n === false, which would skip the upgrade gate.
+  const clientSchema = Number(body.client_schema_version);
+  if (!Number.isFinite(clientSchema)) return errorResponse('طلب مزامنة غير صالح', 400, 'VALIDATION_FAILED');
+  if (clientSchema < auth.account.data_schema_version) {
     return errorResponse('يجب تحديث التطبيق قبل المزامنة', 426, 'SCHEMA_UPGRADE_REQUIRED');
   }
   if (body.operations.length > MAX_OPERATIONS) return errorResponse('عدد العمليات أكبر من المسموح', 413, 'VALIDATION_FAILED');
