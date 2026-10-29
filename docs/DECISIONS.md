@@ -56,8 +56,9 @@
 | الـ migrations والـ CI | CI ينشر الكود فقط ولا يطبّق migrations؛ تُطبَّق يدوياً بـ `wrangler d1 execute --remote --file=...` قبل نشر كود يعتمد جدولاً جديداً | 2026-10-29 |
 | خصوصية المستودع | يبقى عاماً؛ لا أسرار في git (تحقق: لا `*.pem/jks/.dev.vars/local.properties` ولا DSN) | 2026-10-29 |
 | ktlint / detekt | مستبعدان: diff ضخم وقيمة منخفضة على كود قديم؛ Lint + baseline + لقطات الشاشة هي خط الدفاع | 2026-10-29 |
-| رفع خرائط R8 | مؤجّل حتى يتوفر `SENTRY_AUTH_TOKEN`؛ لا تُضاف الإضافة دون تجربة بناء release كامل | 2026-10-29 |
+| رفع خرائط R8 | الإضافة `io.sentry.android.gradle` 6.24.0 موصولة ومُختبرة على Gradle 9/AGP 8.13.2؛ تعمل عند وجود `SENTRY_AUTH_TOKEN` في `local.properties` فقط | 2026-10-29 |
+| sentry-cli على Windows | مسار المشروع يحتوي مسافة فتفشل `cmd /c`؛ الحل `sentry.properties` مُهمَل يشير إلى `C:/Users/BOGEY/AppData/Local/sentry-cli/sentry-cli.exe` | 2026-10-29 |
 | Google Sign-In | مجاني (Google Identity Services بلا رسوم)، لكنه مؤجّل حتى يتوفر OAuth client في Google Cloud + جهاز لاختبار المسار كاملاً | 2026-10-29 |
 | تحقق `/v2` | يبقى يدوياً (`parseBoundedJson` + فحوصات صريحة) لا `zod`؛ و`zod` مقصور على `/v1` العامة | 2026-10-29 |
 | إصدار release موقّع | `app-release.apk` (26.1 MB، versionCode 2 / 1.1) بصمة الشهادة `5d10d027…f3876` مطابقة لـ `EXPECTED_CERT_SHA256`، وقواعد keep في `mapping.txt` سليمة | 2026-10-29 |
-| نشر الإصدار للجمهور | لا GitHub Release عام قبل تجربة APK على جهاز فعلي ورفع versionCode/Name بشكل مقصود | 2026-10-29 |
+| التوزيع | تطوير خاص: لا GitHub Releases عامة ولا نشر للجمهور؛ التسليم بملف APK مباشرة لمن يُختار | 2026-10-29 |

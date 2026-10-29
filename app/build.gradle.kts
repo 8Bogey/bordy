@@ -6,6 +6,7 @@ plugins {
     id("com.google.devtools.ksp")
     id("org.jetbrains.kotlin.plugin.compose")
     alias(libs.plugins.roborazzi)
+    alias(libs.plugins.sentry.android.gradle) apply false
 }
 
 val localProperties = Properties()
@@ -18,6 +19,22 @@ fun getReleaseProperty(key: String): String {
     return (project.findProperty(key) as? String)
         ?: localProperties.getProperty(key)
         ?: ""
+}
+
+// رفع خرائط R8 لا يعمل إلا بوجود توكن؛ بدونه يُبنى الـ release كما هو
+val sentryAuthToken = getReleaseProperty("SENTRY_AUTH_TOKEN")
+if (sentryAuthToken.isNotBlank()) {
+    apply(plugin = "io.sentry.android.gradle")
+    configure<io.sentry.android.gradle.extensions.SentryPluginExtension> {
+        org.set("bogies")
+        projectName.set("bordy-android")
+        authToken.set(sentryAuthToken)
+        includeProguardMapping.set(true)
+        autoUploadProguardMapping.set(true)
+        includeSourceContext.set(false)
+        telemetry.set(false)
+        tracingInstrumentation.enabled.set(false)
+    }
 }
 
 android {
