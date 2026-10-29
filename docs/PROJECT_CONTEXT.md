@@ -82,6 +82,7 @@
 - مخططات Room تُصدَّر إلى `app/schemas` — تفعّل اختبارات الترقية ابتداءً من النسخة القادمة.
 - Lint: `app/lint-baseline.xml` يجمّد الدين الحالي؛ `warningsAsErrors = true` يفشل على أي تحذير جديد.
 - لقطات شاشة مرجعية (Robolectric + Roborazzi): `app/src/test/screenshots/`، تُنشأ بـ `recordRoborazziDebug` ويُتحقق منها في CI.
-- Sentry: `BordyApp.initCrashReporting()` يقرأ `SENTRY_DSN` من `local.properties`/`-PSENTRY_DSN`؛ فارغ = معطّل. بلا PII وبلا تتبّع أداء.
+- Sentry: منظمة `bogies`، مشروع `bordy-android`. `BordyApp.initCrashReporting()` يقرأ `SENTRY_DSN` من `local.properties`/`-PSENTRY_DSN`؛ فارغ = معطّل. بلا PII وبلا تتبّع أداء.
+  - بقية: رفع خرائط R8 يحتاج إضافة `io.sentry.android.gradle` + `SENTRY_AUTH_TOKEN` في `local.properties` — لم يُضف بعد لأن بناء release حساس.
 - التحقق من مدخلات الخادم: `bordy-license/src/validate.ts` بـ`zod` لمساري `activate` و`refresh`؛ بقية المسارات ما زالت يدوية.
 - ديون معروفة: لا اختبارات UI آلية سوى اللقطات، وبقية مسارات الخادم بلا `zod`.
