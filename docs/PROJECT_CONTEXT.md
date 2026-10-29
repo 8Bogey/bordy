@@ -78,6 +78,8 @@
 
 - اختبارات وحدة للرياضيات: `app/src/test/java/com/bordy/app/utils/`.
 - اختبارات Worker: `bordy-license/test/utils.test.ts` عبر `npm test`.
-- CI: `.github/workflows/android.yml` و`worker.yml` (تعمل بعد أول push).
+- CI: `.github/workflows/android.yml` و`worker.yml` — بناء + lint + اختبارات + تحقق لقطات، والنشر عند وسم `v*`.
 - مخططات Room تُصدَّر إلى `app/schemas` — تفعّل اختبارات الترقية ابتداءً من النسخة القادمة.
-- ديون معروفة: لا اختبارات UI آلية، لا لقطات شاشة مرجعية، لا crash reporting، تحقق مدخلات الخادم يدوي بلا `zod`.
+- Lint: `app/lint-baseline.xml` يجمّد الدين الحالي؛ `warningsAsErrors = true` يفشل على أي تحذير جديد.
+- لقطات شاشة مرجعية (Robolectric + Roborazzi): `app/src/test/screenshots/`، تُنشأ بـ `recordRoborazziDebug` ويُتحقق منها في CI.
+- ديون معروفة: لا اختبارات UI آلية سوى اللقطات، لا crash reporting، تحقق مدخلات الخادم يدوي بلا `zod`.

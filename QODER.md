@@ -48,6 +48,8 @@ export ADB="$ANDROID_HOME/platform-tools/adb.exe"
 ```
 
 نسخة التطوير: `./gradlew :app:assembleDebug` — الاختبارات: `./gradlew :app:testDebugUnitTest`.
+Lint: `./gradlew :app:lintDebug` (baseline في `app/lint-baseline.xml`).
+لقطات الشاشة: `./gradlew :app:recordRoborazziDebug` للتحديث، و`:app:verifyRoborazziDebug` للتحقق.
 الخادم: `cd bordy-license && npm test && npx tsc --noEmit && npx wrangler dev`.
 جدول الرموز: AGP 8.13.2، Kotlin 2.0.20، Gradle 9.0، JDK 17 (JBR)، compileSdk 34، minSdk 30.
 

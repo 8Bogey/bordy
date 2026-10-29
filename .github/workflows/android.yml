@@ -40,7 +40,17 @@ jobs:
         run: chmod +x gradlew
 
       - name: Build, lint and test
-        run: bash ./gradlew :app:assembleDebug :app:lintDebug :app:testDebugUnitTest --no-daemon --console=plain
+        run: bash ./gradlew :app:assembleDebug :app:lintDebug :app:testDebugUnitTest :app:verifyRoborazziDebug --no-daemon --console=plain
+
+      - name: Upload screenshot diffs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: roborazzi-results
+          path: |
+            app/build/outputs/roborazzi
+            app/build/test-results/testDebugUnitTest
+          if-no-files-found: ignore
 
       - uses: actions/upload-artifact@v4
         with:
