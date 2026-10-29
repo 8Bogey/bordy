@@ -77,7 +77,7 @@
 ## 7. حالة الجودة (بعد التهيئة الحالية)
 
 - اختبارات وحدة للرياضيات: `app/src/test/java/com/bordy/app/utils/`.
-- اختبارات Worker: `bordy-license/test/` عبر `npm test` — `utils` (تنسيق/تطبيع/تقريب)، `validate` (مخططات zod)، `licensing` (عتبات انتهاء الترخيص و`clampTrialSeconds`).
+- اختبارات Worker: `bordy-license/test/` عبر `npm test` — `utils` (تنسيق/تطبيع/تقريب)، `validate` (مخططات zod)، `licensing` (عتبات انتهاء الترخيص و`clampTrialSeconds`)، `orders` (حساب الخصم، تعرّف صور الإيصال، حالة انتهاء الطلب).
 - CI: `.github/workflows/android.yml` و`worker.yml` — بناء + lint + اختبارات + تحقق لقطات، والنشر عند وسم `v*`.
 - مخططات Room تُصدَّر إلى `app/schemas` — تفعّل اختبارات الترقية ابتداءً من النسخة القادمة.
 - Lint: `app/lint-baseline.xml` يجمّد الدين الحالي؛ `warningsAsErrors = true` يفشل على أي تحذير جديد.

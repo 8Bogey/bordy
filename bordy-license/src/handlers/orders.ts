@@ -20,7 +20,7 @@ const MAX_PROOF_BYTES = 2 * 1024 * 1024;
 const ALLOWED_PROOF_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif']);
 
 /** Trust the bytes, not the client's Content-Type. */
-function sniffImageMime(bytes: Uint8Array): string | null {
+export function sniffImageMime(bytes: Uint8Array): string | null {
   if (bytes.length >= 3 && bytes[0] === 0xFF && bytes[1] === 0xD8 && bytes[2] === 0xFF) return 'image/jpeg';
   if (bytes.length >= 8 && bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47) return 'image/png';
   if (
@@ -40,7 +40,7 @@ function sniffImageMime(bytes: Uint8Array): string | null {
 
 // ── Order helpers ────────────────────────────────────────────────────────────
 
-function isExpired(order: OrderRow, now: number): boolean {
+export function isExpired(order: OrderRow, now: number): boolean {
   return (order.status === 'PENDING' || order.status === 'SUBMITTED') && order.expires_at <= now;
 }
 
@@ -654,7 +654,7 @@ export async function rejectOrder(env: Env, orderId: string, reason: string, act
 /**
  * Apply a discount code and return final price and days.
  */
-function applyDiscount(code: CodeRow, basePrice: number, baseDays: number): {
+export function applyDiscount(code: CodeRow, basePrice: number, baseDays: number): {
   discount: number;
   finalPrice: number;
   daysGranted: number;
