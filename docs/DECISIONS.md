@@ -59,3 +59,5 @@
 | رفع خرائط R8 | مؤجّل حتى يتوفر `SENTRY_AUTH_TOKEN`؛ لا تُضاف الإضافة دون تجربة بناء release كامل | 2026-10-29 |
 | Google Sign-In | مجاني (Google Identity Services بلا رسوم)، لكنه مؤجّل حتى يتوفر OAuth client في Google Cloud + جهاز لاختبار المسار كاملاً | 2026-10-29 |
 | تحقق `/v2` | يبقى يدوياً (`parseBoundedJson` + فحوصات صريحة) لا `zod`؛ و`zod` مقصور على `/v1` العامة | 2026-10-29 |
+| إصدار release موقّع | `app-release.apk` (26.1 MB، versionCode 2 / 1.1) بصمة الشهادة `5d10d027…f3876` مطابقة لـ `EXPECTED_CERT_SHA256`، وقواعد keep في `mapping.txt` سليمة | 2026-10-29 |
+| نشر الإصدار للجمهور | لا GitHub Release عام قبل تجربة APK على جهاز فعلي ورفع versionCode/Name بشكل مقصود | 2026-10-29 |
