@@ -44,13 +44,15 @@ export ADB="$ANDROID_HOME/platform-tools/adb.exe"
 ./scripts/install-device.sh     # تثبيت على الجهاز
 ./scripts/verify-ui.sh          # فحص الواجهة عبر uiautomator
 ./scripts/pull-db.sh            # سحب db + db-wal بأمان
-./scripts/deploy-worker.sh      # نشر Worker
+./scripts/deploy-worker.sh      # نشر Worker (لا نشر دون طلب صريح)
 ```
 
 نسخة التطوير: `./gradlew :app:assembleDebug` — الاختبارات: `./gradlew :app:testDebugUnitTest`.
 Lint: `./gradlew :app:lintDebug` (baseline في `app/lint-baseline.xml`).
 لقطات الشاشة: `./gradlew :app:recordRoborazziDebug` للتحديث، و`:app:verifyRoborazziDebug` للتحقق.
 الخادم: `cd bordy-license && npm test && npx tsc --noEmit && npx wrangler dev`.
+النشر في CI يعمل عند وسم `v*` فقط؛ دفع `main` يشغّل الاختبارات ولا ينشر شيئاً.
+مدخلات `/v1` تُتحقق عبر مخططات `bordy-license/src/validate.ts` (`zod`) — أي حقل جديد يُضاف إلى المخطط لا يُبدّل رسالة الخطأ ولا `code`.
 جدول الرموز: AGP 8.13.2، Kotlin 2.0.20، Gradle 9.0، JDK 17 (JBR)، compileSdk 34، minSdk 30.
 
 ## طقس التحقق الإلزامي (لا تختصره)
