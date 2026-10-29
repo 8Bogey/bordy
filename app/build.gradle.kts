@@ -70,6 +70,15 @@ android {
         buildConfig = true
     }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
+
+    lint {
+        // تجميد الدين الحالي؛ أي تحذير جديد يفشل البناء
+        baseline = file("lint-baseline.xml")
+        warningsAsErrors = true
+        abortOnError = true
+        // فحوص ترقية الاعتماديات تتغيّر مع الشبكة ولا تخصّ صحة الكود
+        disable += setOf("GradleDependency", "NewerVersionAvailable", "AndroidGradlePluginVersion", "UseTomlInstead")
+    }
 }
 
 ksp {
