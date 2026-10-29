@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- زائد غليظ بأطراف مدوّرة — للحاسبة -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M9.8,4.2 A2.2,2.2 0 0 1 14.2,4.2 L14.2,9.8 L19.8,9.8 A2.2,2.2 0 0 1 19.8,14.2 L14.2,14.2 L14.2,19.8 A2.2,2.2 0 0 1 9.8,19.8 L9.8,14.2 L4.2,14.2 A2.2,2.2 0 0 1 4.2,9.8 L9.8,9.8 Z" />
+</vector>

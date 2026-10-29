@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- سجل العمليات — للسجل في الشريط العلوي -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M5.44,5.44 A9.7,9.7 0 1 1 5.44,19.16 L7.42,17.18 A6.9,6.9 0 1 0 7.42,7.42 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M4.73,4.73 L8.13,8.13 L3.18,9.68 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M13.7,12.3 L13.7,7.8 A1.4,1.4 0 0 0 10.9,7.8 L10.9,12.3 A1.4,1.4 0 0 0 13.7,12.3 Z" />
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M11.78,13.6 L15.02,14.91 A1.4,1.4 0 0 0 16.07,12.31 L12.82,11 A1.4,1.4 0 0 0 11.78,13.6 Z" />
+</vector>

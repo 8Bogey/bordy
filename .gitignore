@@ -1,0 +1,44 @@
+# Gradle / build
+.gradle/
+**/build/
+.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# IDE
+.idea/
+*.iml
+
+# Local config & secrets (never commit)
+local.properties
+*.jks
+*.keystore
+*.pem
+keys_info.txt
+keystore_info.txt
+admin_secrets.txt
+generate-keys.js
+.dev.vars
+bordy-license/.dev.vars
+bordy-license/admin_test.json
+bordy-license/curl_login.json
+bordy-license/seed.local.sql
+
+# Wrangler / Node
+.wrangler/
+bordy-license/node_modules/
+npm-debug.log*
+
+# Local database copies & device dumps
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+.local-db/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

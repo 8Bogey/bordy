@@ -1,0 +1,1914 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 26,
+    "identityHash": "a1628b38ea96a8c0d162cc6736038bbc",
+    "entities": [
+      {
+        "tableName": "suppliers",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `phone` TEXT NOT NULL, `url` TEXT NOT NULL, `rating` INTEGER NOT NULL, `defaultMinOrder` INTEGER NOT NULL, `deliveryCost` REAL NOT NULL, `orderIndex` INTEGER NOT NULL, `syncId` TEXT NOT NULL DEFAULT '')",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "phone",
+            "columnName": "phone",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "url",
+            "columnName": "url",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rating",
+            "columnName": "rating",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "defaultMinOrder",
+            "columnName": "defaultMinOrder",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deliveryCost",
+            "columnName": "deliveryCost",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "orderIndex",
+            "columnName": "orderIndex",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncId",
+            "columnName": "syncId",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_suppliers_syncId",
+            "unique": true,
+            "columnNames": [
+              "syncId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_suppliers_syncId` ON `${TABLE_NAME}` (`syncId`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "components",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `imageUri` TEXT NOT NULL, `brand` TEXT NOT NULL, `origin` TEXT NOT NULL, `customFields` TEXT NOT NULL, `orderIndex` INTEGER NOT NULL, `stockCount` INTEGER NOT NULL DEFAULT 0, `purchasePrice` REAL NOT NULL DEFAULT 0, `sellPrice` REAL NOT NULL DEFAULT 0, `syncId` TEXT NOT NULL DEFAULT '')",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "imageUri",
+            "columnName": "imageUri",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "brand",
+            "columnName": "brand",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "customFields",
+            "columnName": "customFields",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "orderIndex",
+            "columnName": "orderIndex",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stockCount",
+            "columnName": "stockCount",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "purchasePrice",
+            "columnName": "purchasePrice",
+            "affinity": "REAL",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "sellPrice",
+            "columnName": "sellPrice",
+            "affinity": "REAL",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "syncId",
+            "columnName": "syncId",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_components_syncId",
+            "unique": true,
+            "columnNames": [
+              "syncId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_components_syncId` ON `${TABLE_NAME}` (`syncId`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "component_variants",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `componentId` INTEGER NOT NULL, `specName` TEXT NOT NULL, `defaultPurchasePrice` REAL NOT NULL, `defaultSellPrice` REAL NOT NULL, `stockCount` INTEGER NOT NULL, `isBase` INTEGER NOT NULL DEFAULT 0, `syncId` TEXT NOT NULL DEFAULT '', FOREIGN KEY(`componentId`) REFERENCES `components`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "componentId",
+            "columnName": "componentId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "specName",
+            "columnName": "specName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "defaultPurchasePrice",
+            "columnName": "defaultPurchasePrice",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "defaultSellPrice",
+            "columnName": "defaultSellPrice",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stockCount",
+            "columnName": "stockCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isBase",
+            "columnName": "isBase",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "syncId",
+            "columnName": "syncId",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_component_variants_componentId",
+            "unique": false,
+            "columnNames": [
+              "componentId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_component_variants_componentId` ON `${TABLE_NAME}` (`componentId`)"
+          },
+          {
+            "name": "index_component_variants_syncId",
+            "unique": true,
+            "columnNames": [
+              "syncId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_component_variants_syncId` ON `${TABLE_NAME}` (`syncId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "components",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "componentId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "supplier_offers",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `variantId` INTEGER NOT NULL, `supplierId` INTEGER NOT NULL, `purchasePrice` REAL NOT NULL, `minOrder` INTEGER NOT NULL, `syncId` TEXT NOT NULL DEFAULT '', FOREIGN KEY(`variantId`) REFERENCES `component_variants`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`supplierId`) REFERENCES `suppliers`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "variantId",
+            "columnName": "variantId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "supplierId",
+            "columnName": "supplierId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "purchasePrice",
+            "columnName": "purchasePrice",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "minOrder",
+            "columnName": "minOrder",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncId",
+            "columnName": "syncId",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_supplier_offers_variantId",
+            "unique": false,
+            "columnNames": [
+              "variantId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_supplier_offers_variantId` ON `${TABLE_NAME}` (`variantId`)"
+          },
+          {
+            "name": "index_supplier_offers_supplierId",
+            "unique": false,
+            "columnNames": [
+              "supplierId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_supplier_offers_supplierId` ON `${TABLE_NAME}` (`supplierId`)"
+          },
+          {
+            "name": "index_supplier_offers_syncId",
+            "unique": true,
+            "columnNames": [
+              "syncId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_supplier_offers_syncId` ON `${TABLE_NAME}` (`syncId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "component_variants",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "variantId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "suppliers",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "supplierId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "templates",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `imageUri` TEXT NOT NULL, `boxWidth` REAL NOT NULL, `boxHeight` REAL NOT NULL, `boxDepth` REAL NOT NULL, `createdAt` INTEGER NOT NULL, `laborCost` REAL NOT NULL DEFAULT 0, `syncId` TEXT NOT NULL DEFAULT '')",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "imageUri",
+            "columnName": "imageUri",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "boxWidth",
+            "columnName": "boxWidth",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "boxHeight",
+            "columnName": "boxHeight",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "boxDepth",
+            "columnName": "boxDepth",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "laborCost",
+            "columnName": "laborCost",
+            "affinity": "REAL",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "syncId",
+            "columnName": "syncId",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_templates_syncId",
+            "unique": true,
+            "columnNames": [
+              "syncId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_templates_syncId` ON `${TABLE_NAME}` (`syncId`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "template_items",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `templateId` INTEGER NOT NULL, `variantId` INTEGER, `quantity` INTEGER NOT NULL, `orderIndex` INTEGER NOT NULL, `manualName` TEXT NOT NULL DEFAULT '', `purchasePrice` REAL NOT NULL DEFAULT 0, `sellPrice` REAL NOT NULL DEFAULT 0, `isManual` INTEGER NOT NULL DEFAULT 0, `syncId` TEXT NOT NULL DEFAULT '')",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "templateId",
+            "columnName": "templateId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "variantId",
+            "columnName": "variantId",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "quantity",
+            "columnName": "quantity",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "orderIndex",
+            "columnName": "orderIndex",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "manualName",
+            "columnName": "manualName",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "purchasePrice",
+            "columnName": "purchasePrice",
+            "affinity": "REAL",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "sellPrice",
+            "columnName": "sellPrice",
+            "affinity": "REAL",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "isManual",
+            "columnName": "isManual",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "syncId",
+            "columnName": "syncId",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_template_items_syncId",
+            "unique": true,
+            "columnNames": [
+              "syncId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_template_items_syncId` ON `${TABLE_NAME}` (`syncId`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "projects",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `customerName` TEXT NOT NULL, `dueDate` INTEGER, `status` TEXT NOT NULL, `completedAt` INTEGER, `laborCost` REAL NOT NULL, `receivedAmount` REAL NOT NULL DEFAULT 0, `createdAt` INTEGER NOT NULL, `syncId` TEXT NOT NULL DEFAULT '')",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "customerName",
+            "columnName": "customerName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dueDate",
+            "columnName": "dueDate",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "completedAt",
+            "columnName": "completedAt",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "laborCost",
+            "columnName": "laborCost",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "receivedAmount",
+            "columnName": "receivedAmount",
+            "affinity": "REAL",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncId",
+            "columnName": "syncId",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_projects_syncId",
+            "unique": true,
+            "columnNames": [
+              "syncId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_projects_syncId` ON `${TABLE_NAME}` (`syncId`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "project_items",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `projectId` INTEGER NOT NULL, `variantId` INTEGER, `manualName` TEXT NOT NULL, `quantity` INTEGER NOT NULL, `sellPrice` REAL NOT NULL, `fromStock` INTEGER NOT NULL, `isCustomSell` INTEGER NOT NULL, `lastKnownPurchase` REAL NOT NULL, `isManual` INTEGER NOT NULL, `orderIndex` INTEGER NOT NULL, `isShortage` INTEGER NOT NULL DEFAULT 0, `shortageRemaining` INTEGER NOT NULL DEFAULT 0, `shortageFromStock` INTEGER NOT NULL DEFAULT 0, `shortageManual` INTEGER NOT NULL DEFAULT 0, `shortageAddedQty` INTEGER NOT NULL DEFAULT 0, `shortageManualPurchase` REAL NOT NULL DEFAULT 0, `shortageManualSell` REAL NOT NULL DEFAULT 0, `syncId` TEXT NOT NULL DEFAULT '')",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "projectId",
+            "columnName": "projectId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "variantId",
+            "columnName": "variantId",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "manualName",
+            "columnName": "manualName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "quantity",
+            "columnName": "quantity",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sellPrice",
+            "columnName": "sellPrice",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fromStock",
+            "columnName": "fromStock",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isCustomSell",
+            "columnName": "isCustomSell",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastKnownPurchase",
+            "columnName": "lastKnownPurchase",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isManual",
+            "columnName": "isManual",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "orderIndex",
+            "columnName": "orderIndex",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isShortage",
+            "columnName": "isShortage",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "shortageRemaining",
+            "columnName": "shortageRemaining",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "shortageFromStock",
+            "columnName": "shortageFromStock",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "shortageManual",
+            "columnName": "shortageManual",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "shortageAddedQty",
+            "columnName": "shortageAddedQty",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "shortageManualPurchase",
+            "columnName": "shortageManualPurchase",
+            "affinity": "REAL",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "shortageManualSell",
+            "columnName": "shortageManualSell",
+            "affinity": "REAL",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "syncId",
+            "columnName": "syncId",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_project_items_syncId",
+            "unique": true,
+            "columnNames": [
+              "syncId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_project_items_syncId` ON `${TABLE_NAME}` (`syncId`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "app_settings",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `isDarkMode` INTEGER NOT NULL, `stockHighThreshold` INTEGER NOT NULL, `stockMediumThreshold` INTEGER NOT NULL, `defaultLaborCost` REAL NOT NULL, `profitFromDate` INTEGER, `profitToDate` INTEGER, `isFirstLaunch` INTEGER NOT NULL, `businessName` TEXT NOT NULL DEFAULT '', `businessTagline` TEXT NOT NULL DEFAULT '', `businessPhone` TEXT NOT NULL DEFAULT '', `invoiceFooter` TEXT NOT NULL DEFAULT '', `showPurchaseInPdf` INTEGER NOT NULL DEFAULT 0, `showProfitInPdf` INTEGER NOT NULL DEFAULT 0, `deliveryHour` INTEGER NOT NULL DEFAULT 18, `deliveryMinute` INTEGER NOT NULL DEFAULT 0, `reminderDaysBefore` INTEGER NOT NULL DEFAULT 1, `reminderHoursBefore` INTEGER NOT NULL DEFAULT 3, `pricesHidden` INTEGER NOT NULL DEFAULT 0, `syncId` TEXT NOT NULL DEFAULT '', PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isDarkMode",
+            "columnName": "isDarkMode",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stockHighThreshold",
+            "columnName": "stockHighThreshold",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "stockMediumThreshold",
+            "columnName": "stockMediumThreshold",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "defaultLaborCost",
+            "columnName": "defaultLaborCost",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "profitFromDate",
+            "columnName": "profitFromDate",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "profitToDate",
+            "columnName": "profitToDate",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "isFirstLaunch",
+            "columnName": "isFirstLaunch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "businessName",
+            "columnName": "businessName",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "businessTagline",
+            "columnName": "businessTagline",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "businessPhone",
+            "columnName": "businessPhone",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "invoiceFooter",
+            "columnName": "invoiceFooter",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "showPurchaseInPdf",
+            "columnName": "showPurchaseInPdf",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "showProfitInPdf",
+            "columnName": "showProfitInPdf",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "deliveryHour",
+            "columnName": "deliveryHour",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "18"
+          },
+          {
+            "fieldPath": "deliveryMinute",
+            "columnName": "deliveryMinute",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "reminderDaysBefore",
+            "columnName": "reminderDaysBefore",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "1"
+          },
+          {
+            "fieldPath": "reminderHoursBefore",
+            "columnName": "reminderHoursBefore",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "3"
+          },
+          {
+            "fieldPath": "pricesHidden",
+            "columnName": "pricesHidden",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "syncId",
+            "columnName": "syncId",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_app_settings_syncId",
+            "unique": true,
+            "columnNames": [
+              "syncId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_app_settings_syncId` ON `${TABLE_NAME}` (`syncId`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "tags",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL COLLATE NOCASE, `colorIndex` INTEGER NOT NULL DEFAULT 0, `createdAt` INTEGER NOT NULL DEFAULT 0, `syncId` TEXT NOT NULL DEFAULT '')",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "name",
+            "columnName": "name",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "colorIndex",
+            "columnName": "colorIndex",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "syncId",
+            "columnName": "syncId",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_tags_name",
+            "unique": true,
+            "columnNames": [
+              "name"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_tags_name` ON `${TABLE_NAME}` (`name`)"
+          },
+          {
+            "name": "index_tags_syncId",
+            "unique": true,
+            "columnNames": [
+              "syncId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_tags_syncId` ON `${TABLE_NAME}` (`syncId`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "component_tags",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`componentId` INTEGER NOT NULL, `tagId` INTEGER NOT NULL, `syncId` TEXT NOT NULL DEFAULT '', PRIMARY KEY(`componentId`, `tagId`), FOREIGN KEY(`componentId`) REFERENCES `components`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`tagId`) REFERENCES `tags`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "componentId",
+            "columnName": "componentId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "tagId",
+            "columnName": "tagId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncId",
+            "columnName": "syncId",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "componentId",
+            "tagId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_component_tags_componentId",
+            "unique": false,
+            "columnNames": [
+              "componentId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_component_tags_componentId` ON `${TABLE_NAME}` (`componentId`)"
+          },
+          {
+            "name": "index_component_tags_tagId",
+            "unique": false,
+            "columnNames": [
+              "tagId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_component_tags_tagId` ON `${TABLE_NAME}` (`tagId`)"
+          },
+          {
+            "name": "index_component_tags_syncId",
+            "unique": true,
+            "columnNames": [
+              "syncId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_component_tags_syncId` ON `${TABLE_NAME}` (`syncId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "components",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "componentId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          },
+          {
+            "table": "tags",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "tagId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "cart_items",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `offerId` INTEGER NOT NULL, `quantity` INTEGER NOT NULL, `orderIndex` INTEGER NOT NULL, `syncId` TEXT NOT NULL DEFAULT '', FOREIGN KEY(`offerId`) REFERENCES `supplier_offers`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "offerId",
+            "columnName": "offerId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "quantity",
+            "columnName": "quantity",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "orderIndex",
+            "columnName": "orderIndex",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "syncId",
+            "columnName": "syncId",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_cart_items_offerId",
+            "unique": false,
+            "columnNames": [
+              "offerId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_cart_items_offerId` ON `${TABLE_NAME}` (`offerId`)"
+          },
+          {
+            "name": "index_cart_items_syncId",
+            "unique": true,
+            "columnNames": [
+              "syncId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_cart_items_syncId` ON `${TABLE_NAME}` (`syncId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "supplier_offers",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "offerId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "project_media",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `projectId` INTEGER NOT NULL, `kind` TEXT NOT NULL, `uri` TEXT NOT NULL, `orderIndex` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, FOREIGN KEY(`projectId`) REFERENCES `projects`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "projectId",
+            "columnName": "projectId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "kind",
+            "columnName": "kind",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "uri",
+            "columnName": "uri",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "orderIndex",
+            "columnName": "orderIndex",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_project_media_projectId",
+            "unique": false,
+            "columnNames": [
+              "projectId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_project_media_projectId` ON `${TABLE_NAME}` (`projectId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "projects",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "projectId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "project_notes",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`projectId` INTEGER NOT NULL, `title` TEXT NOT NULL, `body` TEXT NOT NULL, `colorIndex` INTEGER NOT NULL DEFAULT 0, `updatedAt` INTEGER NOT NULL DEFAULT 0, `syncId` TEXT NOT NULL DEFAULT '', PRIMARY KEY(`projectId`), FOREIGN KEY(`projectId`) REFERENCES `projects`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "projectId",
+            "columnName": "projectId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "body",
+            "columnName": "body",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "colorIndex",
+            "columnName": "colorIndex",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "syncId",
+            "columnName": "syncId",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "projectId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_project_notes_projectId",
+            "unique": false,
+            "columnNames": [
+              "projectId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_project_notes_projectId` ON `${TABLE_NAME}` (`projectId`)"
+          },
+          {
+            "name": "index_project_notes_syncId",
+            "unique": true,
+            "columnNames": [
+              "syncId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_project_notes_syncId` ON `${TABLE_NAME}` (`syncId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "projects",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "projectId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "activity_logs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `createdAt` INTEGER NOT NULL, `category` TEXT NOT NULL, `action` TEXT NOT NULL, `title` TEXT NOT NULL, `details` TEXT NOT NULL, `entityKey` TEXT NOT NULL, `repeatCount` INTEGER NOT NULL, `isEdited` INTEGER NOT NULL, `changeDirection` INTEGER NOT NULL DEFAULT 0, `changeLabel` TEXT NOT NULL DEFAULT '', `changeBefore` INTEGER, `changeAfter` INTEGER)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "category",
+            "columnName": "category",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "action",
+            "columnName": "action",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "title",
+            "columnName": "title",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "details",
+            "columnName": "details",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entityKey",
+            "columnName": "entityKey",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "repeatCount",
+            "columnName": "repeatCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isEdited",
+            "columnName": "isEdited",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "changeDirection",
+            "columnName": "changeDirection",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "changeLabel",
+            "columnName": "changeLabel",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "changeBefore",
+            "columnName": "changeBefore",
+            "affinity": "INTEGER",
+            "notNull": false
+          },
+          {
+            "fieldPath": "changeAfter",
+            "columnName": "changeAfter",
+            "affinity": "INTEGER",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_activity_logs_createdAt",
+            "unique": false,
+            "columnNames": [
+              "createdAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_activity_logs_createdAt` ON `${TABLE_NAME}` (`createdAt`)"
+          },
+          {
+            "name": "index_activity_logs_category",
+            "unique": false,
+            "columnNames": [
+              "category"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_activity_logs_category` ON `${TABLE_NAME}` (`category`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "sync_state",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER NOT NULL, `accountId` TEXT, `cursor` INTEGER NOT NULL, `accountEpoch` INTEGER NOT NULL, `deviceEpoch` INTEGER NOT NULL, `dataSchemaVersion` INTEGER NOT NULL, `restoreMode` INTEGER NOT NULL, `lastSyncAt` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountId",
+            "columnName": "accountId",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "cursor",
+            "columnName": "cursor",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountEpoch",
+            "columnName": "accountEpoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviceEpoch",
+            "columnName": "deviceEpoch",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "dataSchemaVersion",
+            "columnName": "dataSchemaVersion",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "restoreMode",
+            "columnName": "restoreMode",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastSyncAt",
+            "columnName": "lastSyncAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "sync_shadow",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`entityType` TEXT NOT NULL, `entityId` TEXT NOT NULL, `revision` INTEGER NOT NULL, `schemaVersion` INTEGER NOT NULL, `payloadJson` TEXT, `deleted` INTEGER NOT NULL, `updatedAt` INTEGER NOT NULL, PRIMARY KEY(`entityType`, `entityId`))",
+        "fields": [
+          {
+            "fieldPath": "entityType",
+            "columnName": "entityType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entityId",
+            "columnName": "entityId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "revision",
+            "columnName": "revision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "schemaVersion",
+            "columnName": "schemaVersion",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "payloadJson",
+            "columnName": "payloadJson",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "deleted",
+            "columnName": "deleted",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updatedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "entityType",
+            "entityId"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "sync_outbox_operations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`operationId` TEXT NOT NULL, `state` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, `retryCount` INTEGER NOT NULL, `lastError` TEXT, PRIMARY KEY(`operationId`))",
+        "fields": [
+          {
+            "fieldPath": "operationId",
+            "columnName": "operationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "state",
+            "columnName": "state",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "retryCount",
+            "columnName": "retryCount",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastError",
+            "columnName": "lastError",
+            "affinity": "TEXT",
+            "notNull": false
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "operationId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_sync_outbox_operations_state",
+            "unique": false,
+            "columnNames": [
+              "state"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_sync_outbox_operations_state` ON `${TABLE_NAME}` (`state`)"
+          },
+          {
+            "name": "index_sync_outbox_operations_createdAt",
+            "unique": false,
+            "columnNames": [
+              "createdAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_sync_outbox_operations_createdAt` ON `${TABLE_NAME}` (`createdAt`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "sync_outbox_mutations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`operationId` TEXT NOT NULL, `mutationIndex` INTEGER NOT NULL, `entityType` TEXT NOT NULL, `entityId` TEXT NOT NULL, `action` TEXT NOT NULL, `baseRevision` INTEGER NOT NULL, `schemaVersion` INTEGER NOT NULL, `payloadJson` TEXT, `patchJson` TEXT, `baseValuesJson` TEXT, `mergePolicy` TEXT NOT NULL, PRIMARY KEY(`operationId`, `mutationIndex`), FOREIGN KEY(`operationId`) REFERENCES `sync_outbox_operations`(`operationId`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "operationId",
+            "columnName": "operationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "mutationIndex",
+            "columnName": "mutationIndex",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entityType",
+            "columnName": "entityType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entityId",
+            "columnName": "entityId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "action",
+            "columnName": "action",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "baseRevision",
+            "columnName": "baseRevision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "schemaVersion",
+            "columnName": "schemaVersion",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "payloadJson",
+            "columnName": "payloadJson",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "patchJson",
+            "columnName": "patchJson",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "baseValuesJson",
+            "columnName": "baseValuesJson",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "mergePolicy",
+            "columnName": "mergePolicy",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "operationId",
+            "mutationIndex"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_sync_outbox_mutations_operationId",
+            "unique": false,
+            "columnNames": [
+              "operationId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_sync_outbox_mutations_operationId` ON `${TABLE_NAME}` (`operationId`)"
+          },
+          {
+            "name": "index_sync_outbox_mutations_entityType_entityId",
+            "unique": false,
+            "columnNames": [
+              "entityType",
+              "entityId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_sync_outbox_mutations_entityType_entityId` ON `${TABLE_NAME}` (`entityType`, `entityId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "sync_outbox_operations",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "operationId"
+            ],
+            "referencedColumns": [
+              "operationId"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "sync_tombstones",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`entityType` TEXT NOT NULL, `entityId` TEXT NOT NULL, `baseRevision` INTEGER NOT NULL, `schemaVersion` INTEGER NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`entityType`, `entityId`))",
+        "fields": [
+          {
+            "fieldPath": "entityType",
+            "columnName": "entityType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entityId",
+            "columnName": "entityId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "baseRevision",
+            "columnName": "baseRevision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "schemaVersion",
+            "columnName": "schemaVersion",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "entityType",
+            "entityId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_sync_tombstones_createdAt",
+            "unique": false,
+            "columnNames": [
+              "createdAt"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_sync_tombstones_createdAt` ON `${TABLE_NAME}` (`createdAt`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "sync_conflicts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`conflictId` TEXT NOT NULL, `operationId` TEXT NOT NULL, `entityType` TEXT NOT NULL, `entityId` TEXT NOT NULL, `reason` TEXT NOT NULL, `localJson` TEXT, `serverJson` TEXT, `serverRevision` INTEGER NOT NULL, `status` TEXT NOT NULL, `createdAt` INTEGER NOT NULL, PRIMARY KEY(`conflictId`))",
+        "fields": [
+          {
+            "fieldPath": "conflictId",
+            "columnName": "conflictId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "operationId",
+            "columnName": "operationId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entityType",
+            "columnName": "entityType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entityId",
+            "columnName": "entityId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "reason",
+            "columnName": "reason",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "localJson",
+            "columnName": "localJson",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "serverJson",
+            "columnName": "serverJson",
+            "affinity": "TEXT",
+            "notNull": false
+          },
+          {
+            "fieldPath": "serverRevision",
+            "columnName": "serverRevision",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "createdAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "conflictId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_sync_conflicts_status",
+            "unique": false,
+            "columnNames": [
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_sync_conflicts_status` ON `${TABLE_NAME}` (`status`)"
+          },
+          {
+            "name": "index_sync_conflicts_entityType_entityId",
+            "unique": false,
+            "columnNames": [
+              "entityType",
+              "entityId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_sync_conflicts_entityType_entityId` ON `${TABLE_NAME}` (`entityType`, `entityId`)"
+          }
+        ],
+        "foreignKeys": []
+      },
+      {
+        "tableName": "sync_dirty",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`entityType` TEXT NOT NULL, `entityId` TEXT NOT NULL, `markedAt` INTEGER NOT NULL, PRIMARY KEY(`entityType`, `entityId`))",
+        "fields": [
+          {
+            "fieldPath": "entityType",
+            "columnName": "entityType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "entityId",
+            "columnName": "entityId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "markedAt",
+            "columnName": "markedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "entityType",
+            "entityId"
+          ]
+        },
+        "indices": [],
+        "foreignKeys": []
+      }
+    ],
+    "views": [],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'a1628b38ea96a8c0d162cc6736038bbc')"
+    ]
+  }
+}

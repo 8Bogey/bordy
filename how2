@@ -1,0 +1,533 @@
+<div dir="rtl">
+
+# دليل الإعداد الكامل — كيف تُنهي كل شيء يلزمك
+
+> هذا الملف يشرح لك **أنت شخصياً** كل خطوة تحتاج تنفيذها يدوياً لإتمام عمل نظام الترخيص.
+> الخطوات مرتبة زمنياً. نفّذها بالترتيب.
+
+---
+
+## المرحلة 0: إعداد الحسابات والأدوات (قبل أي كود)
+
+### 0.1 تثبيت الأدوات المطلوبة على جهازك
+
+**المطلوب:**
+1. **Node.js** (الإصدار 18 أو أحدث) — لأداة Wrangler الخاصة بـ Cloudflare.
+2. **OpenSSL** — لتوليد مفاتيح التشفير.
+3. **Git** — للتحكم بالإصدارات.
+
+**الخطوات:**
+
+```powershell
+# تحقق هل Node.js مثبت
+node --version
+# إن لم يكن مثبتاً: حمّله من https://nodejs.org/
+
+# تثبيت Wrangler (أداة Cloudflare CLI)
+npm install -g wrangler
+
+# تحقق
+wrangler --version
+```
+
+**OpenSSL على ويندوز:**
+- إن كنت تستعمل Git Bash فهو مضمّن.
+- أو حمّل من: https://slproweb.com/products/Win32OpenSSL.html (نسخة Light كافية).
+- أو استعمل WSL (Windows Subsystem for Linux).
+
+---
+
+### 0.2 إنشاء حساب Cloudflare (مجاني)
+
+1. اذهب إلى: **https://dash.cloudflare.com/sign-up**
+2. سجّل ببريدك الإلكتروني.
+3. **تأكد أن الخطة المجانية لا تطلب بطاقة بنكية.** إن طلبت، جرّب بريد آخر أو VPN.
+4. بعد التسجيل ستحصل على لوحة تحكم فارغة. هذا طبيعي.
+
+**تسجيل الدخول من الـ CLI:**
+```powershell
+wrangler login
+# سيفتح المتصفح — اضغط "Authorize"
+```
+
+---
+
+### 0.3 إنشاء مستودع GitHub (اختياري لكن مستحسن)
+
+1. اذهب إلى: **https://github.com/new**
+2. اسم المستودع: `bordy-license`
+3. **خاص (Private)**.
+4. لا تُضف README أو .gitignore (سنضيفهم لاحقاً).
+
+---
+
+### 0.4 إنشاء بوت تيليجرام (تفصيلي جداً)
+
+#### الخطوة 1: إنشاء البوت
+
+1. افتح تيليجرام على هاتفك أو الكمبيوتر.
+2. ابحث عن **@BotFather** (حساب رسمي من تيليجرام، عليه علامة توثيق زرقاء).
+3. اضغط **Start** أو أرسل `/start`.
+4. أرسل الأمر: `/newbot`
+5. سيسألك عن **اسم البوت** (يظهر للمستخدمين):
+   - اكتب مثلاً: `Bordy License Bot`
+6. سيسألك عن **اسم المستخدم** (username) — يجب أن ينتهي بـ `bot`:
+   - اكتب مثلاً: `bordy_license_bot`
+   - إن كان مأخوذاً، جرّب: `bordy_lic_bot` أو أي اسم ينتهي بـ `bot`.
+7. **سيعطيك التوكن.** مثال:
+   ```
+   7123456789:AAH0-FgBcDeFgHiJkLmNoPqRsTuVwXyZ12
+   ```
+   **احفظ هذا التوكن في مكان آمن.** هذا هو `TG_BOT_TOKEN`.
+
+#### الخطوة 2: الحصول على chat_id الخاص بك
+
+1. ابحث في تيليجرام عن **@userinfobot** (أو @getmyid_bot).
+2. أرسل له `/start`.
+3. سيردّ عليك برقمك، مثال:
+   ```
+   Your ID: 123456789
+   ```
+   **احفظ هذا الرقم.** هذا هو `OWNER_CHAT_ID`.
+
+**طريقة بديلة:**
+1. أرسل أي رسالة لبوتك الجديد (`@bordy_license_bot`).
+2. افتح في المتصفح:
+   ```
+   https://api.telegram.org/bot<TOKEN>/getUpdates
+   ```
+   (استبدل `<TOKEN>` بالتوكن الذي حصلت عليه).
+3. ابحث عن `"chat":{"id":XXXXXXX` — هذا هو `OWNER_CHAT_ID`.
+
+#### الخطوة 3: ضبط إعدادات البوت (اختياري لكن مستحسن)
+
+أرسل لـ @BotFather:
+```
+/setdescription
+```
+اختر بوتك، ثم اكتب الوصف:
+```
+بوت إدارة اشتراكات تطبيق المُبتَكَر — خاص بالمالك فقط.
+```
+
+أرسل:
+```
+/setcommands
+```
+اختر بوتك، ثم اكتب قائمة الأوامر:
+```
+stats - إحصائيات عامة
+pending - الطلبات المنتظرة
+expiring - اشتراكات تنتهي قريباً
+find - بحث عن مشترك
+grant - منح اشتراك يدوي
+extend - تمديد اشتراك
+revoke - سحب اشتراك
+block - حظر جهاز
+unblock - رفع الحظر
+note - ملاحظة على مشترك
+codes - قائمة أكواد الخصم
+code - إدارة كود خصم
+price - تغيير سعر خطة
+report - تقرير إيراد
+export - تصدير CSV
+maint - وضع الصيانة
+tos - إدارة شروط الخدمة
+```
+
+---
+
+### 0.5 توليد مفاتيح التشفير (ECDSA P-256)
+
+**هذه المفاتيح هي قلب نظام الحماية. افقدها = مشكلة كبيرة.**
+
+افتح Git Bash أو PowerShell مع OpenSSL:
+
+```bash
+# المفتاح الأساسي (k1)
+openssl ecparam -name prime256v1 -genkey -noout -out ec_priv_k1.pem
+openssl pkcs8 -topk8 -nocrypt -in ec_priv_k1.pem -out ec_priv_k1_pkcs8.pem
+openssl ec -in ec_priv_k1.pem -pubout -outform DER | openssl base64 -A
+# ← هذا السطر يطبع المفتاح العام بصيغة base64 — انسخه
+echo.
+echo "--- المفتاح العام k1 أعلاه --- احفظه لوضعه في التطبيق"
+
+# المفتاح الاحتياطي (k2) — لا يُفعَّل الآن
+openssl ecparam -name prime256v1 -genkey -noout -out ec_priv_k2.pem
+openssl pkcs8 -topk8 -nocrypt -in ec_priv_k2.pem -out ec_priv_k2_pkcs8.pem
+openssl ec -in ec_priv_k2.pem -pubout -outform DER | openssl base64 -A
+echo.
+echo "--- المفتاح العام k2 أعلاه --- احفظه لوضعه في التطبيق"
+```
+
+**المخرجات المهمة:**
+
+| الملف | الاستعمال | أين يُحفظ |
+|---|---|---|
+| `ec_priv_k1_pkcs8.pem` | المفتاح الخاص (يوقّع الرموز) | Cloudflare Secrets + نسخة احتياطية مادية |
+| المفتاح العام k1 (base64) | يتحقق من التوقيع | `BuildConfig.LICENSE_PUBLIC_KEY_K1` في التطبيق |
+| `ec_priv_k2_pkcs8.pem` | مفتاح احتياطي للتدوير | نسخة احتياطية مادية فقط |
+| المفتاح العام k2 (base64) | احتياط | `BuildConfig.LICENSE_PUBLIC_KEY_K2` في التطبيق |
+
+**⚠️ تحذير صارم:**
+- **لا ترفع المفاتيح الخاصة (`.pem`) إلى GitHub أبداً.**
+- **احفظ نسختين:** واحدة في مدير كلمات مرور (Bitwarden مجاني) + واحدة على فلاشة USB خارجية.
+
+---
+
+### 0.6 إنشاء مفتاح توقيع التطبيق (Release Keystore)
+
+```bash
+keytool -genkeypair -v \
+    -keystore mubtaker-release.jks \
+    -alias mubtaker \
+    -keyalg RSA \
+    -keysize 2048 \
+    -validity 10000 \
+    -storepass <اختر_كلمة_سر_قوية> \
+    -keypass <اختر_كلمة_سر_ثانية>
+```
+
+**ملاحظة لويندوز:** `keytool` موجود مع JDK. إن لم يعمل مباشرة:
+```powershell
+# ابحث عن مسار keytool
+where keytool
+# أو استعمل المسار الكامل مثل:
+# "C:\Program Files\Java\jdk-17\bin\keytool"
+```
+
+**الحصول على SHA-256 لشهادة التوقيع:**
+```bash
+keytool -list -v -keystore mubtaker-release.jks -alias mubtaker
+# ابحث عن SHA-256 في المخرجات
+# مثال: AB:CD:EF:12:34:56:...
+```
+
+**احفظ هذه القيمة.** ستوضعها في:
+1. `BuildConfig.EXPECTED_CERT_SHA256` في التطبيق.
+2. الخادم (اختياري للمقارنة).
+
+**⚠️ تحذير حاسم:**
+- فقدان هذا الملف = **لا تحديثات ممكنة** للمستخدمين الحاليين.
+- تغيير المفتاح = **تصفير بصمات كل الأجهزة** (تُفقد كل التجارب والاشتراكات).
+- **احفظ `mubtaker-release.jks` وكلمتي السر بنسختين** في أماكن مختلفة.
+- **لا ترفعه إلى GitHub.**
+
+**وضع المفتاح في المشروع:**
+1. ضع `mubtaker-release.jks` في مجلد المشروع (لكن أضفه لـ `.gitignore`).
+2. أنشئ ملف `local.properties` (أو عدّله) وأضف:
+   ```properties
+   RELEASE_STORE_FILE=mubtaker-release.jks
+   RELEASE_STORE_PASSWORD=كلمة_السر
+   RELEASE_KEY_ALIAS=mubtaker
+   RELEASE_KEY_PASSWORD=كلمة_السر_الثانية
+   ```
+3. تأكد أن `.gitignore` يحتوي:
+   ```
+   mubtaker-release.jks
+   local.properties
+   *.pem
+   ```
+
+---
+
+### 0.7 إنشاء مشروع Cloudflare Worker
+
+```powershell
+# أنشئ مجلد المشروع
+cd D:\
+npm create cloudflare@latest bordy-license -- --type=hello-world --ts --deploy=false
+
+cd bordy-license
+
+# أنشئ قاعدة البيانات
+npx wrangler d1 create bordy-license
+# ← سيطبع database_id — انسخه
+```
+
+**عدّل `wrangler.toml`:**
+```toml
+name = "bordy-license"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "bordy-license"
+database_id = "الـ ID الذي نسخته"
+
+[triggers]
+crons = ["0 5 * * *"]
+```
+
+**طبّق مخطط قاعدة البيانات:**
+```powershell
+# أنشئ ملف schema.sql (انسخه من plan.md — القسم 1.2)
+# ثم:
+npx wrangler d1 execute bordy-license --remote --file=schema.sql
+```
+
+**أضف الأسرار:**
+```powershell
+# المفتاح الخاص — انسخ محتوى ec_priv_k1_pkcs8.pem بـ base64
+# على ويندوز:
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("ec_priv_k1_pkcs8.pem"))
+# انسخ المخرج ثم:
+npx wrangler secret put LICENSE_PRIVATE_KEY
+# ← الصقه واضغط Enter
+
+npx wrangler secret put TG_BOT_TOKEN
+# ← الصق توكن البوت
+
+# ولّد سر عشوائي للـ webhook:
+# استعمل أي مولّد عشوائي (مثل https://generate.plus/en/base64)
+npx wrangler secret put TG_WEBHOOK_SECRET
+
+npx wrangler secret put OWNER_CHAT_ID
+# ← الصق الرقم
+
+# للوحة الويب (المرحلة 4):
+npx wrangler secret put ADMIN_SECRET
+# ← سر طويل عشوائي (32+ حرف)
+
+npx wrangler secret put ADMIN_TOTP_SECRET
+# ← سر TOTP (من تطبيق المصادقة)
+```
+
+---
+
+### 0.8 إعداد الـ Webhook للبوت
+
+بعد نشر الـ Worker (أو حتى قبله للتجربة):
+
+```powershell
+# استبدل القيم:
+$TOKEN = "7123456789:AAH0-FgBcDeFgHiJkLmNoPqRsTuVwXyZ12"
+$WORKER_URL = "https://bordy-license.YOUR_ACCOUNT.workers.dev"
+$SECRET = "YOUR_WEBHOOK_SECRET_HERE"
+
+# اضبط الـ webhook:
+Invoke-RestMethod -Uri "https://api.telegram.org/bot$TOKEN/setWebhook" -Method POST -Body @{
+    url = "$WORKER_URL/tg/$SECRET"
+    secret_token = $SECRET
+}
+
+# تحقق:
+Invoke-RestMethod -Uri "https://api.telegram.org/bot$TOKEN/getWebhookInfo"
+```
+
+**يجب أن ترى:**
+```json
+{
+  "ok": true,
+  "result": {
+    "url": "https://bordy-license.xxx.workers.dev/tg/yyy",
+    "has_custom_certificate": false,
+    "pending_update_count": 0
+  }
+}
+```
+
+---
+
+### 0.9 نشر الـ Worker
+
+```powershell
+cd D:\bordy-license
+npx wrangler deploy
+```
+
+**تحقق:** افتح المتصفح وادخل عنوان الـ Worker. يجب أن يعيد `404` أو رسالة.
+
+**اختبار البوت:** افتح تيليجرام وأرسل `/start` لبوتك. إن ردّ عليك فالنظام يعمل.
+
+---
+
+## المرحلة 1: كتابة كود الخادم
+
+**هذه المرحلة ينفّذها DeepSeek Flash** بناءً على خطة `plan.md`.
+
+**دورك:**
+1. تأكد أن الحسابات والمفاتيح والأسرار جاهزة (المرحلة 0 أعلاه).
+2. أعطِ DeepSeek Flash ملف `plan.md` وقل له: «نفّذ المرحلة 1».
+3. بعد الانتهاء: شغّل `npx wrangler deploy` وجرّب:
+   ```powershell
+   # اختبار /v1/activate:
+   $body = @{
+       did = "0000000000000000000000000000test"
+       ver = 1
+       model = "Test"
+       sdk = 30
+       cert_hash = "00:00"
+       nonce = "test123"
+   } | ConvertTo-Json
+
+   Invoke-RestMethod -Uri "https://bordy-license.xxx.workers.dev/v1/activate" -Method POST -Body $body -ContentType "application/json"
+   ```
+
+---
+
+## المرحلة 2-3: كود التطبيق
+
+**ينفّذها DeepSeek Flash** بناءً على `plan.md`.
+
+**دورك:**
+1. أعطِ DeepSeek Flash ملف `plan.md` وقل: «نفّذ المرحلة 2 ثم 3».
+2. عدّل قيم `BuildConfig` في `app/build.gradle.kts`:
+   - `API_BASE_URL`: عنوان الـ Worker الخاص بك.
+   - `LICENSE_PUBLIC_KEY_K1`: المفتاح العام الذي ولّدته.
+   - `LICENSE_PUBLIC_KEY_K2`: المفتاح العام الاحتياطي.
+   - `EXPECTED_CERT_SHA256`: بصمة شهادة التوقيع.
+3. ابنِ وجرّب على جهاز حقيقي.
+
+---
+
+## المرحلة 4: لوحة الويب
+
+**ينفّذها DeepSeek Flash** بناءً على `plan.md`.
+
+---
+
+## المرحلة 5: التصليب
+
+**ينفّذها DeepSeek Flash** بناءً على `plan.md`.
+
+---
+
+## المرحلة 6: الإطلاق
+
+### 6.1 كتابة شروط الخدمة
+
+أرسل للبوت:
+```
+/tos set نص شروط الخدمة هنا...
+```
+
+أو عبر لوحة الويب: ادخل > «إعدادات» > «شروط الخدمة» > عدّل واحفظ.
+
+**نقاط مقترحة لشروط الخدمة:**
+- الاشتراك غير قابل للاسترداد بعد التفعيل.
+- جهاز واحد لكل اشتراك.
+- يحق للمالك حظر أي حساب يخالف الشروط.
+- البيانات محفوظة على جهاز المستخدم فقط.
+- نحن غير مسؤولين عن فقدان البيانات بسبب سوء الاستخدام.
+
+### 6.2 تعبئة بيانات طرق الدفع
+
+أرسل للبوت أو عبر لوحة الويب بيانات محافظك الحقيقية:
+- آسيا باي: رقم الحساب/المحفظة.
+- زين كاش: رقم المحفظة.
+- كي كارد: رقم البطاقة أو الحساب.
+- FIB: رقم الحساب.
+
+### 6.3 بناء APK الإصدار
+
+```powershell
+cd "D:\kk - Copy"
+.\gradlew assembleRelease
+# APK سيكون في: app/build/outputs/apk/release/app-release.apk
+```
+
+### 6.4 نشر APK
+
+**GitHub Releases:**
+1. ارفع APK إلى مستودع GitHub عام (Releases).
+2. أنشئ Release جديد مع ملاحظات الإصدار.
+
+**قناة تيليجرام:**
+1. أنشئ قناة تيليجرام (مثلاً @bordy_app).
+2. انشر APK مع تعليمات التثبيت.
+
+### 6.5 اختبار شبكات العراق
+
+**قبل الإطلاق العام، يجب اختبار الوصول لـ `workers.dev` من:**
+- زين
+- آسيا سيل
+- كورك تيليكوم
+- FTTH (fiber)
+
+**الطريقة:**
+1. أبقِ التطبيق متصلاً فقط بشبكة مزوّد واحد.
+2. تأكد أن `/v1/activate` يعمل.
+3. إن فشل: استعمل نطاق مخصص أو `pages.dev` كبديل.
+
+---
+
+## الصيانة اليومية (بعد الإطلاق)
+
+### روتينك اليومي (2-5 دقائق):
+1. **الصباح:** سيصلك تقرير يومي على تيليجرام تلقائياً. اقرأه.
+2. **عند وصول إشعار طلب جديد:**
+   - افتح كشف محفظتك المعنية.
+   - قارن المبلغ والمرجع.
+   - اضغط ✅ ثم تأكيد.
+3. **أسبوعياً:** أرسل `/expiring 14` للبوت وتابع من سينتهي.
+
+### أوامر البوت المفيدة:
+
+```
+/stats              ← ملخص سريع
+/pending            ← طلبات تنتظر موافقتك
+/find أحمد          ← بحث بالاسم
+/find 07XXXXXXXX    ← بحث بالهاتف
+/find a3f9          ← بحث ببصمة قصيرة
+/grant a3f9 monthly ← منح يدوي
+/code new WELCOME percent 50 2026-11-01 2026-12-01 max=100
+/codes              ← عرض الأكواد النشطة
+/report             ← تقرير إيراد الشهر
+/export             ← CSV كامل
+```
+
+---
+
+## حالات الطوارئ
+
+### إذا توقف Cloudflare:
+- المشتركون الحاليون يعملون حتى انتهاء رموزهم (7 أيام).
+- التجارب الجديدة لن تبدأ.
+- استعمل مفتاح التفعيل اليدوي (`/grant` ← انسخ المفتاح وأرسله للزبون عبر واتساب).
+
+### إذا تسرّب المفتاح الخاص:
+1. افتح إعدادات Cloudflare ← غيّر `LICENSE_PRIVATE_KEY` لمحتوى `ec_priv_k2_pkcs8.pem`.
+2. في كود الخادم: غيّر `kid` الافتراضي لـ `"k2"`.
+3. انشر تحديث إجباري للتطبيق (ارفع `minv`).
+4. ولّد مفتاح `k3` كاحتياطي جديد.
+
+### إذا فُقد مفتاح توقيع التطبيق (JKS):
+- **لا يمكن استرداده.** لذلك احفظه بنسختين.
+- الحل الوحيد: نشر تطبيق بمعرّف حزمة جديد وطلب إعادة التثبيت من الجميع.
+
+### إذا حُجب تيليجرام:
+- استعمل لوحة الويب (`https://bordy-license.xxx.workers.dev/admin/`).
+- أو استعمل VPN.
+- الخادم يعمل مستقلاً عن البوت.
+
+---
+
+## معلومات مرجعية سريعة
+
+| العنصر | المكان |
+|---|---|
+| عنوان الخادم | `https://bordy-license.<حسابك>.workers.dev` |
+| لوحة التحكم Cloudflare | `https://dash.cloudflare.com` |
+| لوحة الويب | `https://bordy-license.<حسابك>.workers.dev/admin/` |
+| قاعدة البيانات | Cloudflare Dashboard → D1 → bordy-license |
+| سجلات الخادم | `npx wrangler tail` (مباشر) أو Cloudflare Dashboard → Workers → Logs |
+| البوت | `@bordy_license_bot` على تيليجرام |
+| مفاتيح التشفير | محفوظة في مدير كلمات مرور + فلاشة USB |
+| مفتاح التطبيق | `mubtaker-release.jks` في مدير كلمات مرور + فلاشة USB |
+
+---
+
+## ملخص ملفات يجب حفظها بأمان (لا ترفعها لأي مكان عام)
+
+| الملف | الخطورة |
+|---|---|
+| `mubtaker-release.jks` | 🔴 فقدانه = لا تحديثات |
+| كلمتا سر الـ JKS | 🔴 |
+| `ec_priv_k1_pkcs8.pem` | 🔴 تسرّبه = كسر الحماية |
+| `ec_priv_k2_pkcs8.pem` | 🟡 احتياطي |
+| توكن بوت تيليجرام | 🟡 يمكن تغييره من BotFather |
+| `ADMIN_SECRET` | 🟡 يمكن تغييره |
+
+</div>

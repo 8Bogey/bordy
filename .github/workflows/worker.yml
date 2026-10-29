@@ -1,0 +1,53 @@
+name: Worker
+
+on:
+  push:
+    paths:
+      - 'bordy-license/**'
+      - '.github/workflows/worker.yml'
+  pull_request:
+    paths:
+      - 'bordy-license/**'
+      - '.github/workflows/worker.yml'
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bordy-license
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: bordy-license/package-lock.json
+
+      - run: npm ci
+      - run: npm test
+      - run: npx tsc --noEmit
+
+  deploy:
+    if: github.ref_type == 'tag'
+    needs: test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bordy-license
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: bordy-license/package-lock.json
+
+      - run: npm ci
+      - run: npx wrangler deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
