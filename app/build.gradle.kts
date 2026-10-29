@@ -36,6 +36,8 @@ android {
         buildConfigField("String", "LICENSE_PUBLIC_KEY_K1", "\"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAERQomeD+6BCo9741IttIh1I72X+faB17168Hn66b1hgiOuOWjLiMiLwxhwgfW6xC9eQVVbyzSGh8oPHZZ4TiAiQ==\"")
         buildConfigField("String", "LICENSE_PUBLIC_KEY_K2", "\"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEu+of+mUwnnBBaSQ5HY3CuPwURC7xyV99GgwcUL/iF+1sIRxS9ej4+66DB+nELfWkV5faRXgu/51SIpcUhRIfAw==\"")
         buildConfigField("String", "EXPECTED_CERT_SHA256", "\"5D:10:D0:27:79:DC:B9:70:2E:C8:9B:E0:85:F5:7D:B9:8F:A8:C3:FE:14:AA:25:5C:A4:81:A5:2A:19:3F:38:76\"")
+        // DSN من local.properties أو -PSENTRY_DSN؛ فارغ = تعطيل الإبلاغ
+        buildConfigField("String", "SENTRY_DSN", "\"${getReleaseProperty("SENTRY_DSN")}\"")
     }
 
     signingConfigs {
@@ -108,6 +110,7 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.9.1")
     ksp("androidx.room:room-compiler:2.6.1")
     implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation(libs.sentry.android)
 
     testImplementation("junit:junit:4.13.2")
 
