@@ -83,4 +83,5 @@
 - Lint: `app/lint-baseline.xml` يجمّد الدين الحالي؛ `warningsAsErrors = true` يفشل على أي تحذير جديد.
 - لقطات شاشة مرجعية (Robolectric + Roborazzi): `app/src/test/screenshots/`، تُنشأ بـ `recordRoborazziDebug` ويُتحقق منها في CI.
 - Sentry: `BordyApp.initCrashReporting()` يقرأ `SENTRY_DSN` من `local.properties`/`-PSENTRY_DSN`؛ فارغ = معطّل. بلا PII وبلا تتبّع أداء.
-- ديون معروفة: لا اختبارات UI آلية سوى اللقطات، تحقق مدخلات الخادم يدوي بلا `zod`.
+- التحقق من مدخلات الخادم: `bordy-license/src/validate.ts` بـ`zod` لمساري `activate` و`refresh`؛ بقية المسارات ما زالت يدوية.
+- ديون معروفة: لا اختبارات UI آلية سوى اللقطات، وبقية مسارات الخادم بلا `zod`.

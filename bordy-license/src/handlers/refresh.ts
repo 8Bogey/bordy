@@ -4,17 +4,14 @@ import { getPrivateKey, signToken } from '../crypto';
 import { buildTokenPayload } from './activate';
 import { isValidDeviceId, jsonResponse, errorResponse, parseJsonBody } from '../utils';
 import { checkRateLimit } from '../rate-limit';
-
-interface RefreshInput {
-  did: string;
-  nonce: string;
-}
+import { refreshBodySchema } from '../validate';
 
 export async function handleRefresh(request: Request, env: Env): Promise<Response> {
-  const body = await parseJsonBody<RefreshInput>(request);
-  if (!body || !body.did || !body.nonce) {
+  const parsed = refreshBodySchema.safeParse(await parseJsonBody(request));
+  if (!parsed.success) {
     return errorResponse('Missing required fields');
   }
+  const body = parsed.data;
 
   if (!isValidDeviceId(body.did)) {
     return errorResponse('Invalid device ID');

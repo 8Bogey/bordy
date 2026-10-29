@@ -5,22 +5,14 @@ import { isValidDeviceId, normalizeCode, jsonResponse, errorResponse, parseJsonB
 import { checkRateLimit } from '../rate-limit';
 import { validateCode } from './codes';
 import { clampTrialSeconds } from './config';
-
-interface ActivateInput {
-  did: string;
-  ver: number;
-  model: string;
-  sdk: number;
-  cert_hash: string;
-  nonce: string;
-  owner_code?: string;
-}
+import { activateBodySchema } from '../validate';
 
 export async function handleActivate(request: Request, env: Env): Promise<Response> {
-  const body = await parseJsonBody<ActivateInput>(request);
-  if (!body || !body.did || !body.nonce) {
+  const parsed = activateBodySchema.safeParse(await parseJsonBody(request));
+  if (!parsed.success) {
     return errorResponse('Missing required fields');
   }
+  const body = parsed.data;
 
   if (!isValidDeviceId(body.did)) {
     return errorResponse('Invalid device ID');
