@@ -77,12 +77,13 @@
 ## 7. حالة الجودة (بعد التهيئة الحالية)
 
 - اختبارات وحدة للرياضيات: `app/src/test/java/com/bordy/app/utils/`.
-- اختبارات Worker: `bordy-license/test/utils.test.ts` عبر `npm test`.
+- اختبارات Worker: `bordy-license/test/` عبر `npm test` — `utils` (تنسيق/تطبيع/تقريب)، `validate` (مخططات zod)، `licensing` (عتبات انتهاء الترخيص و`clampTrialSeconds`).
 - CI: `.github/workflows/android.yml` و`worker.yml` — بناء + lint + اختبارات + تحقق لقطات، والنشر عند وسم `v*`.
 - مخططات Room تُصدَّر إلى `app/schemas` — تفعّل اختبارات الترقية ابتداءً من النسخة القادمة.
 - Lint: `app/lint-baseline.xml` يجمّد الدين الحالي؛ `warningsAsErrors = true` يفشل على أي تحذير جديد.
 - لقطات شاشة مرجعية (Robolectric + Roborazzi): `app/src/test/screenshots/`، تُنشأ بـ `recordRoborazziDebug` ويُتحقق منها في CI.
 - Sentry: منظمة `bogies`، مشروع `bordy-android`. `BordyApp.initCrashReporting()` يقرأ `SENTRY_DSN` من `local.properties`/`-PSENTRY_DSN`؛ فارغ = معطّل. بلا PII وبلا تتبّع أداء.
   - بقية: رفع خرائط R8 يحتاج إضافة `io.sentry.android.gradle` + `SENTRY_AUTH_TOKEN` في `local.properties` — لم يُضف بعد لأن بناء release حساس.
-- التحقق من مدخلات الخادم: `bordy-license/src/validate.ts` بـ`zod` لمساري `activate` و`refresh`؛ بقية المسارات ما زالت يدوية.
-- ديون معروفة: لا اختبارات UI آلية سوى اللقطات، وبقية مسارات الخادم بلا `zod`.
+- التحقق من مدخلات الخادم: `bordy-license/src/validate.ts` بـ`zod` يغطي كل مسارات `/v1` العامة (activate، refresh، codes/check، redeem، transfer، orders: إنشاء/إيصال/إلغاء). المخططات `.passthrough()` عمداً: لا يجوز كسر إصدارات التطبيق المنشورة التي ترسل حقولاً إضافية. بقية الحقول المحوّلة تحافظ على رسائل الحالة والأخطاء الأصلية حرفياً.
+- مسارات `/v2/*` (الحسابات والمزامنة) تتحقق يدوياً عبر `parseBoundedJson` مع حدود حجم و`operationShapeValid` و`MAX_OPERATIONS`/`MAX_MUTATIONS` وفحص أجيال الحساب/الجهاز؛ تركيها على حالها قرارٌ لا تغييره ضمن هذا العمل.
+- ديون معروفة: لا اختبارات UI آلية سوى اللقطات؛ لا اختبارات تكامل تشغّل الـ Worker كاملاً (التغطية للدوال النقية فقط).

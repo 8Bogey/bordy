@@ -20,6 +20,7 @@ npm run db:init           # تطبيق schema.sql على D1 المحلي
 2. `npx tsc --noEmit`
 3. راجع توافق `/v1/*` مع نسخ التطبيق المنشورة — لا تكسر الشكل `{ok, error?, code?}`.
 4. `./scripts/deploy-worker.sh --dry-run` ثم النشر بعد موافقة المستخدم.
+5. النشر في CI يعمل عند وسم `v*` فقط (`github.ref_type == 'tag'`)؛ دفع فرع لا ينشر شيئاً. لا تنشئ وسماً دون طلب صريح.
 
 ## تغييرات قاعدة البيانات
 
@@ -37,7 +38,8 @@ npm run db:init           # تطبيق schema.sql على D1 المحلي
 ## قواعد
 
 - الوقت من الخادم فقط (`Date.now()`)، والردود عبر `jsonResponse`/`errorResponse`.
-- تحقق من كل مدخل (الحجم، الصيغة، النطاقات)؛ استخدم `parseBoundedJson` و`isValidDeviceId`.
+- تحقق من كل مدخل (الحجم، الصيغة، النطاقات)؛ مسارات `/v1` تمر عبر مخططات `src/validate.ts` (`schema.safeParse(await parseJsonBody(request))`)، و`/v2` عبر `parseBoundedJson` + فحوصات شكل العمليات. أي حقل جديد يُضاف إلى المخطط لا يُبدّل رسالة الخطأ أو الحالة أو الشيفرة.
+- المخططات `.passthrough()` عمداً: إصدارات التطبيق المنشورة ترسل حقولاً إضافية، ورفضها يعني كسر التفعيل.
 - معدّل الطلبات في `rate-limit.ts` — لا تعطله.
 - لوحة `/admin` تُختبر عبر MCP `browser-use` على `wrangler dev`.
 - سجّل الأخطاء بـ `console.error` مع سياق كافٍ، بلا أسرار.
