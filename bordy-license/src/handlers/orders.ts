@@ -6,7 +6,7 @@ import {
 } from '../db';
 import { validateCode } from './codes';
 import { checkRateLimit } from '../rate-limit';
-import { sendTelegram } from '../telegram';
+import { notifyOwner } from '../telegram';
 import { getPrivateKey, signToken } from '../crypto';
 import { buildTokenPayload } from './activate';
 import {
@@ -139,7 +139,7 @@ async function notifyNewOrder(env: Env, order: OrderRow): Promise<void> {
       ],
     };
 
-    await sendTelegram(env.TG_BOT_TOKEN, env.OWNER_CHAT_ID, msg, inlineKeyboard);
+    await notifyOwner(env, msg, inlineKeyboard);
   } catch (_) {
     // Notification failure must never break the purchase flow.
   }
@@ -282,7 +282,7 @@ export async function handleCreateOrder(request: Request, env: Env): Promise<Res
         if (freshDevice && !freshDevice.blocked) {
           const paidTtlDays = parseInt(freshSettings.paid_token_ttl_days || '7');
           const graceDays = parseInt(freshSettings.grace_days || '2');
-          const minAppVersion = parseInt(freshSettings.min_app_version || '1');
+          const minAppVersion = String(freshSettings.min_app_version || '1').trim() || '1';
           const tosVersion = parseInt(freshSettings.tos_version || '1');
           const nonce = crypto.randomUUID().replace(/-/g, '').substring(0, 16);
           const tokenPayload = buildTokenPayload(freshDevice, now, nonce, paidTtlDays, graceDays, minAppVersion, tosVersion);
@@ -459,7 +459,7 @@ export async function handleSubmitProof(request: Request, env: Env, orderId: str
     ],
   };
 
-  await sendTelegram(env.TG_BOT_TOKEN, env.OWNER_CHAT_ID, msg, inlineKeyboard);
+  await notifyOwner(env, msg, inlineKeyboard);
 
   return jsonResponse({
     ok: true,
@@ -503,7 +503,7 @@ export async function handleGetOrder(request: Request, env: Env, orderId: string
       if (device && !device.blocked) {
         const paidTtlDays = parseInt(settings.paid_token_ttl_days || '7');
         const graceDays = parseInt(settings.grace_days || '2');
-        const minAppVersion = parseInt(settings.min_app_version || '1');
+        const minAppVersion = String(settings.min_app_version || '1').trim() || '1';
         const tosVersion = parseInt(settings.tos_version || '1');
         const nonce = crypto.randomUUID().replace(/-/g, '').substring(0, 16);
 
@@ -614,7 +614,7 @@ export async function approveOrder(env: Env, orderId: string, actor: string): Pr
 
   // Free activations deserve an audit trail in the owner's chat.
   if (order.final_price <= 0) {
-    await sendTelegram(env.TG_BOT_TOKEN, env.OWNER_CHAT_ID,
+    await notifyOwner(env,
       `🎁 <b>تفعيل مجاني</b>\n`
       + `📋 الطلب: <code>${orderId}</code>\n`
       + `📱 الجهاز: <code>${order.device_id.substring(0, 8)}...</code>\n`

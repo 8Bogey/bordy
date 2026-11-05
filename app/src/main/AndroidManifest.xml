@@ -21,6 +21,11 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.BordyApp">
 
+        <!-- الإقلاع اليدوي في BordyApp يتخطى Sentry عند غياب DSN؛ بدونه يرمي الـ provider استثناءً ويغلق التطبيق -->
+        <meta-data
+            android:name="io.sentry.auto-init"
+            android:value="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

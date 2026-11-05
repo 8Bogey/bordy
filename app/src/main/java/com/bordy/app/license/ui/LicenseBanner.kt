@@ -9,10 +9,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.bordy.app.license.LicenseState
+import com.bordy.app.license.LicenseStore
+import com.bordy.app.license.formatNoticeRemaining
 import com.bordy.app.license.formatRemaining
 import com.bordy.app.utils.BrandYellow
 import com.bordy.app.utils.DangerRed
@@ -22,26 +25,29 @@ fun LicenseBanner(
     state: LicenseState,
     onRenewClick: (() -> Unit)? = null
 ) {
+    val context = LocalContext.current
     val (text, bgColor, textColor) = when (state) {
         is LicenseState.Trial -> {
             if (!state.showBanner) return
             Triple(
-                "⏳ باقيلك ${formatRemaining(state.msLeft)} بفترة التجربة المجانية — اضغط حتى ترقّي",
+                "⏳ متبقٍ لديك ${formatRemaining(state.msLeft)} في فترة التجربة المجانية — اضغط للترقية",
                 BrandYellow,
                 Color(0xFF3B2A00)
             )
         }
         is LicenseState.Active -> {
-            if (!state.showReminder) return
+            // Lifetime subscriptions never show an expiry reminder.
+            if (state.lifetime || !state.showReminder) return
+            val notice = LicenseStore.getExpiryNotice(context)
             Triple(
-                "🔔 باقي ${state.daysLeft} أيام ويخلص اشتراكك — اضغط وجدد هسّه",
+                "🔔 متبقٍ على انتهاء اشتراكك ${formatNoticeRemaining(state.msLeft, notice.unit)} — اضغط وجدّد الآن",
                 Color(0xFFFB923C), // Amber/Orange
                 Color.White
             )
         }
         is LicenseState.Grace -> {
             Triple(
-                "⚠️ خلص اشتراكك! عندك فترة سماح ${formatRemaining(state.msLeft)} — جدّد هسّه حتى ما يوكف التطبيق",
+                "⚠️ انتهى اشتراكك! لديك فترة سماح ${formatRemaining(state.msLeft)} — جدّد الآن حتى لا يتوقف التطبيق",
                 DangerRed,
                 Color.White
             )

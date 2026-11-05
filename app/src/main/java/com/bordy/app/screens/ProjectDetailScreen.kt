@@ -73,7 +73,6 @@ import com.bordy.app.ui.components.PieceGridTile
 import com.bordy.app.ui.components.PieceCountBadge
 import com.bordy.app.ui.components.TemplatePiecesDialog
 import com.bordy.app.ui.components.TemplateListCard
-import com.bordy.app.ui.components.SlimScreenHeader
 import com.bordy.app.ui.components.TintedCircleButton
 import com.bordy.app.ui.components.StepButton
 import com.bordy.app.ui.components.matchesTagSearch
@@ -82,6 +81,8 @@ import com.bordy.app.viewmodel.MainViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import androidx.compose.ui.platform.LocalConfiguration
+import com.bordy.app.ui.components.SlimScreenHeader
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -154,7 +155,7 @@ fun ProjectDetailScreen(
 
     fun showBoardProfitNotification() {
         val profit = totalCost - totalMaterialCost
-        val msg = "أرباح البورد الحالية: ${formatCurrency(profit)}"
+        val msg = "أرباح المشروع الحالية: ${formatCurrency(profit)}"
         scope.launch {
             launch { snackbarHostState.showSnackbar(msg, duration = SnackbarDuration.Indefinite) }
             delay(5000)
@@ -212,11 +213,11 @@ fun ProjectDetailScreen(
                 TintedCircleButton(
                     onClick = {
                         if (pricesHidden) {
-                            scope.launch { snackbarHostState.showSnackbar("الأسعار مخفية — حط بصمتك حتى تشوف الأرباح") }
+                            scope.launch { snackbarHostState.showSnackbar("الأسعار مخفية — أدخل بصمتك لعرض الأرباح") }
                         } else showBoardProfitNotification()
                     },
                     icon = Icons.Rounded.MonetizationOn,
-                    contentDescription = "أرباح البورد",
+                    contentDescription = "أرباح المشروع",
                     tint = SellGreen,
                     size = 40.dp,
                     iconSize = 20.dp
@@ -225,19 +226,19 @@ fun ProjectDetailScreen(
                 TintedCircleButton(
                     onClick = {
                         if (pricesHidden) {
-                            scope.launch { snackbarHostState.showSnackbar("ما تكدر تصدّر قائمة بالأسعار وانت خافيهن — طلع الأسعار أول") }
+                            scope.launch { snackbarHostState.showSnackbar("لا يمكنك تصدير قائمة بالأسعار وهي مخفية — أظهر الأسعار أولاً") }
                             return@TintedCircleButton
                         }
                         val pdfFile = PdfHelper.generateProjectPdf(context, p, localItems, variants, components, emptyList(), settings ?: AppSettings())
                         if (!pdfFile.exists() || pdfFile.length() == 0L) {
-                            scope.launch { snackbarHostState.showSnackbar("ما كدرنا نسوي القائمة، جرب مرة ثانية") }
+                            scope.launch { snackbarHostState.showSnackbar("لم نتمكن من إنشاء القائمة، حاول مرة أخرى") }
                         } else {
                             runCatching {
                                 val uri = FileProvider.getUriForFile(context, "${context.packageName}.provider", pdfFile)
                                 val intent = Intent(Intent.ACTION_SEND).apply { type = "application/pdf"; putExtra(Intent.EXTRA_STREAM, uri); addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION) }
-                                context.startActivity(Intent.createChooser(intent, "دز قائمة البورد"))
+                                context.startActivity(Intent.createChooser(intent, "مشاركة قائمة المشروع"))
                             }.onFailure {
-                                scope.launch { snackbarHostState.showSnackbar("ماكو تطبيق بجهازك لمشاركة الملف") }
+                                scope.launch { snackbarHostState.showSnackbar("لا يوجد تطبيق على جهازك لمشاركة الملف") }
                             }
                         }
                     },
@@ -251,7 +252,7 @@ fun ProjectDetailScreen(
                 TintedCircleButton(
                     onClick = { showAttachments = true },
                     icon = Icons.Default.AttachFile,
-                    contentDescription = "مرفقات البورد وملاحظته",
+                    contentDescription = "مرفقات المشروع وملاحظاته",
                     tint = SellGreen,
                     size = 40.dp,
                     iconSize = 19.dp
@@ -261,15 +262,15 @@ fun ProjectDetailScreen(
                     TintedCircleButton(
                         onClick = { showStatusMenu = true },
                         icon = Icons.Default.MoreVert,
-                        contentDescription = "حالة البورد",
+                        contentDescription = "حالة المشروع",
                         tint = MaterialTheme.colorScheme.primary,
                         size = 40.dp,
                         iconSize = 20.dp
                     )
                     DropdownMenu(expanded = showStatusMenu, onDismissRequest = { showStatusMenu = false }) {
-                        DropdownMenuItem(text = { Text("شغّال عليه") }, onClick = { vm.updateProjectStatus(p, "ACTIVE"); showStatusMenu = false }, leadingIcon = { Icon(Icons.Default.Build, null, tint = BrandYellow) })
+                        DropdownMenuItem(text = { Text("قيد التنفيذ") }, onClick = { vm.updateProjectStatus(p, "ACTIVE"); showStatusMenu = false }, leadingIcon = { Icon(Icons.Default.Build, null, tint = BrandYellow) })
                         DropdownMenuItem(text = { Text("مجدول للمستقبل") }, onClick = { vm.updateProjectStatus(p, "FUTURE"); showStatusMenu = false }, leadingIcon = { Icon(Icons.Default.DateRange, null, tint = BrandYellow) })
-                        DropdownMenuItem(text = { Text("مكمّل ومنتهي") }, onClick = { vm.updateProjectStatus(p, "DONE"); showStatusMenu = false }, leadingIcon = { Icon(Icons.Default.CheckCircle, null, tint = BrandYellow) })
+                        DropdownMenuItem(text = { Text("مكتمل ومنتهٍ") }, onClick = { vm.updateProjectStatus(p, "DONE"); showStatusMenu = false }, leadingIcon = { Icon(Icons.Default.CheckCircle, null, tint = BrandYellow) })
                     }
                 }
             }
@@ -303,7 +304,7 @@ fun ProjectDetailScreen(
                 item {
                     EmptyState(
                         icon = Icons.Default.Inventory,
-                        message = "البورد فاضي بعده.. أضف أول قطعة! ⚡"
+                        message = "المشروع فارغ حالياً.. أضف أول قطعة! ⚡"
                     )
                 }
             }
@@ -719,7 +720,7 @@ fun ProjectDetailScreen(
                                     }
                                 }
                                 Spacer(Modifier.height(4.dp))
-                                Text("تعويض من المخزون — قطعة بكل ضغطة", style = MaterialTheme.typography.labelSmall, color = SellGreen)
+                                Text("تعويض من المخزون — قطعة مع كل نقرة", style = MaterialTheme.typography.labelSmall, color = SellGreen)
                                 Text(
                                     if (availableStock > 0) "المخزون المتاح: $availableStock"
                                     else "المخزون فارغ حالياً — أضف قطعاً للمخزون ثم اسحبها",
@@ -776,7 +777,7 @@ fun ProjectDetailScreen(
             if (localItems.isEmpty()) {
                 EmptyState(
                     icon = Icons.Default.Inventory,
-                    message = "البورد فاضي بعده.. أضف أول قطعة! ⚡",
+                    message = "المشروع فارغ حالياً.. أضف أول قطعة! ⚡",
                     modifier = Modifier.fillMaxSize().padding(padding)
                 )
             } else {
@@ -1284,7 +1285,7 @@ fun ProjectDetailScreen(
             onDismissRequest = { showLaborDialog = false },
             shape = DialogShape,
             containerColor = MaterialTheme.colorScheme.surface,
-            title = { Text("شغل اليد", fontWeight = FontWeight.Bold) },
+            title = { Text("أجرة اليد", fontWeight = FontWeight.Bold) },
             text = { OutlinedTextField(value = cost, onValueChange = { cost = it }, label = { Text("المبلغ") }, shape = RoundedCornerShape(14.dp)) },
             confirmButton = { BrandButton(text = "حفظ", onClick = { vm.updateLaborCost(p, cost.toDoubleOrNull() ?: 0.0); showLaborDialog = false }) })
     }
@@ -1442,11 +1443,11 @@ private fun BoardSummaryCard(
                 }
             } else {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("مصروف من الجيب:", color = DangerRed, fontWeight = FontWeight.Bold); Text(formatCurrency(outOfPocket).withThousandsDot(), color = DangerRed, fontWeight = FontWeight.Bold) }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("كلفتني المواد:", color = BuyAmber, fontWeight = FontWeight.Bold); Text(formatCurrency(totalMaterialCost).withThousandsDot(), color = BuyAmber, fontWeight = FontWeight.Bold) }
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("كلفته المواد:", color = SellGreen, fontWeight = FontWeight.Bold); Text(formatCurrency(totalSellCost).withThousandsDot(), color = SellGreen, fontWeight = FontWeight.Bold) }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("تكلفة المواد:", color = BuyAmber, fontWeight = FontWeight.Bold); Text(formatCurrency(totalMaterialCost).withThousandsDot(), color = BuyAmber, fontWeight = FontWeight.Bold) }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) { Text("سعر بيع المواد:", color = SellGreen, fontWeight = FontWeight.Bold); Text(formatCurrency(totalSellCost).withThousandsDot(), color = SellGreen, fontWeight = FontWeight.Bold) }
                 Divider(Modifier.padding(vertical = 6.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("شغل اليد:", fontWeight = FontWeight.Bold)
+                    Text("أجرة اليد:", fontWeight = FontWeight.Bold)
                     Row {
                         Text(formatCurrency(project.laborCost).withThousandsDot(), fontWeight = FontWeight.Bold)
                         if (!done) IconButton(onClick = onLabor, modifier = Modifier.size(24.dp)) { Icon(Icons.Default.Edit, "تعديل", tint = SellGreen, modifier = Modifier.size(16.dp)) }
@@ -1775,10 +1776,10 @@ fun AddComponentSheet(
             onDismissRequest = { showManualAdd = false },
             shape = DialogShape,
             containerColor = MaterialTheme.colorScheme.surface,
-            title = { Text("إضافة قطعة يدوياً للبورد", fontWeight = FontWeight.Bold, color = BrandYellow) },
+            title = { Text("إضافة قطعة يدوياً للمشروع", fontWeight = FontWeight.Bold, color = BrandYellow) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("لن تُضاف إلى المكتبة، فقط لهذا البورد.", style = MaterialTheme.typography.bodySmall, color = BrandYellow)
+                    Text("لن تُضاف إلى المكتبة، بل لهذا المشروع فقط.", style = MaterialTheme.typography.bodySmall, color = BrandYellow)
                     OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("اسم القطعة") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp))
                     OutlinedTextField(value = purchase, onValueChange = { purchase = it }, label = { Text("سعر الشراء") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp))
                     OutlinedTextField(value = sell, onValueChange = { sell = it }, label = { Text("سعر البيع") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp))

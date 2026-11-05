@@ -38,7 +38,7 @@ object DeliveryReminders {
                 "تذكير بمواعيد التسليم",
                 NotificationManager.IMPORTANCE_DEFAULT
             ).apply {
-                description = "تنبيه قبل موعد تسليم البوردات"
+                description = "تنبيه قبل موعد تسليم المشاريع"
             }
         )
     }
@@ -120,7 +120,7 @@ object DeliveryReminders {
 
     internal fun notify(context: Context, projectId: Long, customer: String, dueDate: Long, kind: Int) {
         ensureChannel(context)
-        val kindLabel = if (kind == KIND_DAYS) "بأيام" else "بساعات"
+        val kindLabel = if (kind == KIND_DAYS) "قبل أيام" else "قبل ساعات"
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
             putExtra(EXTRA_PROJECT_ID, projectId)

@@ -143,6 +143,10 @@ INSERT OR IGNORE INTO settings VALUES ('tos_version', '1');
 INSERT OR IGNORE INTO settings VALUES ('payment_methods', '[{"name":"آسيا باي","account":"XXXXXXXXXX","note":""},{"name":"زين كاش","account":"XXXXXXXXXX","note":""},{"name":"كي كارد","account":"XXXXXXXXXX","note":""},{"name":"FIB","account":"XXXXXXXXXX","note":""}]');
 INSERT OR IGNORE INTO settings VALUES ('support_telegram', 'https://t.me/XXXXXXX');
 INSERT OR IGNORE INTO settings VALUES ('support_whatsapp', 'https://wa.me/964XXXXXXXXXX');
+INSERT OR IGNORE INTO settings VALUES ('bot_notifications_enabled', '1');
+INSERT OR IGNORE INTO settings VALUES ('expiry_notice_enabled', '1');
+INSERT OR IGNORE INTO settings VALUES ('expiry_notice_unit', 'days');
+INSERT OR IGNORE INTO settings VALUES ('expiry_notice_value', '3');
 
 CREATE INDEX IF NOT EXISTS idx_devices_account ON devices(account_id);
 CREATE INDEX IF NOT EXISTS idx_orders_account ON orders(account_id);

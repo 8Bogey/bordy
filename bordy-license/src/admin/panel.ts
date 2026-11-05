@@ -2,8 +2,8 @@ import { Env, DeviceRow, OrderRow, CodeRow, EventRow, PaymentMethod } from '../t
 import { attemptLogin, validateSession, validateCsrf, getCsrfToken, createSessionCookie, clearSessionCookie } from './auth';
 import { getSettings, setSetting, logEvent } from '../db';
 import { approveOrder, rejectOrder } from '../handlers/orders';
-import { SYNC_INTERVAL_MAX, SYNC_INTERVAL_MIN, clampSyncInterval, clampForegroundSync, clampTrialSeconds, FOREGROUND_SYNC_MIN, FOREGROUND_SYNC_MAX, TRIAL_MIN_SECONDS, TRIAL_MAX_SECONDS } from '../handlers/config';
-import { formatBaghdadTime, normalizeCode, parseJsonBody } from '../utils';
+import { SYNC_INTERVAL_MAX, SYNC_INTERVAL_MIN, clampSyncInterval, clampForegroundSync, clampTrialSeconds, FOREGROUND_SYNC_MIN, FOREGROUND_SYNC_MAX, TRIAL_MIN_SECONDS, TRIAL_MAX_SECONDS, clampExpiryNoticeUnit, clampExpiryNoticeValue, expiryNoticeEnabled, EXPIRY_NOTICE_UNITS } from '../handlers/config';
+import { formatBaghdadTime, normalizeCode, parseJsonBody, parsePaymentMethods } from '../utils';
 import { handleAdminAccountsApi } from './accounts';
 
 /**
@@ -48,6 +48,20 @@ export async function handleAdminPanel(request: Request, env: Env): Promise<Resp
 
   if (path === '/admin/api/accounts' || path.startsWith('/admin/api/accounts/')) {
     return handleAdminAccountsApi(request, env);
+  }
+
+  // Used by the admin Android app: the session cookie itself is not enough for writes.
+  if (path === '/admin/api/csrf' && request.method === 'GET') {
+    const token = await getCsrfToken(cookie, env);
+    return Response.json({ ok: true, csrf: token || '' });
+  }
+
+  if (path === '/admin/api/stats' && request.method === 'GET') {
+    return apiStats(env);
+  }
+
+  if (path === '/admin/api/settings' && request.method === 'GET') {
+    return apiGetSettings(env);
   }
 
   if (path === '/admin/api/devices') {
@@ -195,6 +209,7 @@ async function renderDashboard(env: Env, csrfToken: string): Promise<Response> {
     'support_whatsapp', 'support_telegram', 'sync_interval_seconds',
     'foreground_sync_seconds', 'trial_seconds', 'trial_days',
     'paid_token_ttl_days', 'grace_days', 'min_app_version',
+    'bot_notifications_enabled', 'expiry_notice_enabled', 'expiry_notice_unit', 'expiry_notice_value',
   ]);
 
   const trialSeconds = clampTrialSeconds(settings.trial_seconds, settings.trial_days);
@@ -207,6 +222,10 @@ async function renderDashboard(env: Env, csrfToken: string): Promise<Response> {
     : trialUnit === 'minutes' ? trialSeconds / 60
     : trialSeconds;
   const foregroundSync = clampForegroundSync(settings.foreground_sync_seconds);
+  const botEnabled = expiryNoticeEnabled(settings.bot_notifications_enabled);
+  const noticeEnabled = expiryNoticeEnabled(settings.expiry_notice_enabled);
+  const noticeUnit = clampExpiryNoticeUnit(settings.expiry_notice_unit);
+  const noticeValue = clampExpiryNoticeValue(settings.expiry_notice_value, noticeUnit);
 
   const html = `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -262,6 +281,17 @@ button,.btn{padding:.5rem 1rem;border:none;border-radius:6px;cursor:pointer;font
 .mt-1{margin-top:.5rem}
 .mb-1{margin-bottom:.5rem}
 .flex{display:flex;gap:.5rem;align-items:center}
+.switch-row{display:flex;justify-content:space-between;align-items:center;gap:1rem;background:#0f172a;border:1px solid #334155;border-radius:10px;padding:.9rem 1rem}
+.switch-title{font-weight:600;color:#e2e8f0}
+.switch-desc{color:#94a3b8;font-size:.8rem;margin-top:.2rem;max-width:560px}
+.switch{position:relative;display:inline-block;width:52px;height:28px;flex:0 0 auto}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;cursor:pointer;inset:0;background:#475569;border-radius:999px;transition:.2s}
+.slider:before{content:"";position:absolute;height:22px;width:22px;right:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.switch input:checked+.slider{background:#059669}
+.switch input:checked+.slider:before{transform:translateX(-24px)}
+.notice-preview{background:#78350f;color:#fde68a;border-radius:8px;padding:.6rem .8rem;font-weight:600;font-size:.85rem}
+.section-num{display:inline-block;background:#1e3a5f;color:#93c5fd;border-radius:6px;padding:0 .4rem;margin-left:.35rem;font-size:.75rem;vertical-align:middle}
 #loading{display:none;text-align:center;padding:2rem;color:#94a3b8}
 </style>
 </head>
@@ -375,12 +405,52 @@ button,.btn{padding:.5rem 1rem;border:none;border-radius:6px;cursor:pointer;font
   <!-- Settings Panel -->
   <div class="panel" id="tab-settings">
     <form id="settings-form" onsubmit="saveSettings(event)">
-      <h3 style="margin-bottom:1rem;color:#60a5fa">⏱️ التوقيت والتجربة</h3>
+      <h3 style="margin-bottom:1rem;color:#60a5fa">🔔 التنبيهات والبوت <span class="section-num">1</span></h3>
+      <div class="switch-row">
+        <div>
+          <div class="switch-title">إشعارات بوت تيليجرام</div>
+          <div class="switch-desc">إشعارات الطلبات، إثباتات الدفع، التقرير اليومي والتصدير. الأوامر وتنبيهات الأمان تبقى تعمل دائماً.</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="set-bot" ${botEnabled ? 'checked' : ''}>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="switch-row" style="margin-top:.75rem">
+        <div>
+          <div class="switch-title">تنبيه قرب انتهاء الاشتراك في تطبيق بوردي</div>
+          <div class="switch-desc">يظهر للمستخدم «باقي على انتهاء اشتراكك …» ضمن المدة المحددة أدناه. الاشتراك مدى الحياة لا يعرض أي تنبيه.</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="set-notice-enabled" ${noticeEnabled ? 'checked' : ''}>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <div class="form-grid" style="margin-top:.75rem">
+        <div class="form-group">
+          <label>المدة قبل الانتهاء التي يبدأ عندها التنبيه</label>
+          <div style="display:flex;gap:.5rem">
+            <input type="number" id="set-notice-value" min="1" step="1" value="${noticeValue}">
+            <select id="set-notice-unit" style="max-width:130px">
+              <option value="days" ${noticeUnit === 'days' ? 'selected' : ''}>يوم</option>
+              <option value="hours" ${noticeUnit === 'hours' ? 'selected' : ''}>ساعة</option>
+              <option value="minutes" ${noticeUnit === 'minutes' ? 'selected' : ''}>دقيقة</option>
+            </select>
+          </div>
+          <small style="color:#94a3b8">مثال: 3 أيام = يظهر التنبيه في آخر 72 ساعة. القيمة تُطبَّق على كل الأجهزة عند المزامنة.</small>
+        </div>
+        <div class="form-group">
+          <label>المعاينة في تطبيق بوردي</label>
+          <div class="notice-preview" id="notice-preview">باقي على انتهاء اشتراكك ${noticeValue} ${noticeUnit === 'days' ? 'يوم' : noticeUnit === 'hours' ? 'ساعة' : 'دقيقة'}</div>
+          <small style="color:#94a3b8">يُحسب الوقت الفعلي المتبقي ويُعرض بنفس الوحدة المختارة.</small>
+        </div>
+      </div>
+      <h3 style="margin:1.5rem 0 1rem;color:#60a5fa">⏱️ التوقيت والترخيص <span class="section-num">2</span></h3>
       <div class="form-grid">
         <div class="form-group">
           <label>مدة النسخة التجريبية</label>
           <div style="display:flex;gap:.5rem">
-            <input type="number" id="set-trial-value" min="1" step="any" value="${trialValue}">
+            <input type="number" id="set-trial-value" min="0" step="any" value="${trialValue}">
             <select id="set-trial-unit" style="max-width:130px">
               <option value="days" ${trialUnit === 'days' ? 'selected' : ''}>يوم</option>
               <option value="hours" ${trialUnit === 'hours' ? 'selected' : ''}>ساعة</option>
@@ -388,7 +458,7 @@ button,.btn{padding:.5rem 1rem;border:none;border-radius:6px;cursor:pointer;font
               <option value="seconds" ${trialUnit === 'seconds' ? 'selected' : ''}>ثانية</option>
             </select>
           </div>
-          <small style="color:#94a3b8">تُطبَّق على الأجهزة الجديدة فقط — الحالي: ${trialSeconds} ثانية (${(trialSeconds / 86400).toFixed(2)} يوم)</small>
+          <small style="color:#94a3b8">تُطبَّق على الأجهزة الجديدة فقط — الحالي: ${trialSeconds > 0 ? `${trialSeconds} ثانية (${(trialSeconds / 86400).toFixed(2)} يوم)` : 'بلا تجربة مجانية (الجهاز الجديد يبدأ مقفلاً حتى الاشتراك)'}. القيمة 0 تُلغي التجربة المجانية.</small>
         </div>
         <div class="form-group">
           <label>المزامنة أثناء فتح التطبيق (ثانية) — شبه آنية</label>
@@ -407,13 +477,128 @@ button,.btn{padding:.5rem 1rem;border:none;border-radius:6px;cursor:pointer;font
         <div class="form-group">
           <label>أيام السماح بعد الانتهاء</label>
           <input type="number" id="set-grace" min="0" max="60" value="${parseInt(settings.grace_days || '2', 10)}">
+          <small style="color:#94a3b8">فترة يبقى فيها التطبيق يعمل بعد انتهاء الاشتراك أو التجربة. 0 = يتوقف فوراً عند الانتهاء بلا فترة سماح.</small>
         </div>
         <div class="form-group">
           <label>أقل إصدار مسموح للتطبيق</label>
-          <input type="number" id="set-minv" min="0" value="${parseInt(settings.min_app_version || '1', 10)}">
+          <input type="text" inputmode="decimal" id="set-minv" value="${escapeHtml(settings.min_app_version || '1')}" placeholder="1.0">
+          <small style="color:#94a3b8">يقبل الكسور العشرية مثل 1.0 أو 1.2، ويُقارَن بنسخة التطبيق الظاهرة.</small>
         </div>
       </div>
-      <h3 style="margin:1.5rem 0 1rem;color:#60a5fa">📄 الشروط والدعم</h3>
+      <h3 style="margin:1.5rem 0 1rem;color:#60a5fa">💳 الدفع والدعم <span class="section-num">3</span></h3>
+      <div class="form-group">
+        <label>طرق الدفع</label>
+        <div id="pm-list" style="display:flex;flex-direction:column;gap:.5rem"></div>
+        <button type="button" class="btn btn-secondary" onclick="openPaymentForm(-1)" style="margin-top:.5rem">＋ إضافة طريقة دفع</button>
+        <div id="pm-form" style="display:none;margin-top:.75rem;padding:.75rem;border:1px solid #334155;border-radius:10px">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>اسم طريقة الدفع</label>
+              <input type="text" id="pm-name" placeholder="مثال: زين كاش">
+            </div>
+            <div class="form-group">
+              <label>رقم أو حساب التحويل</label>
+              <input type="text" id="pm-account" placeholder="07XXXXXXXXX">
+            </div>
+          </div>
+          <div class="form-group">
+            <label>ملاحظة (اختياري)</label>
+            <input type="text" id="pm-note" placeholder="تظهر للمشترك أسفل رقم التحويل">
+          </div>
+          <div id="pm-error" style="color:#fca5a5;font-size:.8rem;min-height:1rem"></div>
+          <div class="flex" style="gap:.5rem">
+            <button type="button" class="btn btn-primary" onclick="savePaymentForm()">حفظ الطريقة</button>
+            <button type="button" class="btn btn-secondary" onclick="closePaymentForm()">إلغاء</button>
+          </div>
+        </div>
+        <small style="color:#94a3b8;display:block;margin-top:.5rem">يظهر للمشترك اسم الطريقة ورقم التحويل والملاحظة فقط — لا حاجة لأي صيغة تقنية.</small>
+      </div>
+      <script type="application/json" id="pm-initial">${JSON.stringify(parsePaymentMethods(settings.payment_methods)).replace(/</g, '\\u003c')}</script>
+      <script>
+        let paymentMethodsData = [];
+        try {
+          const rawPm = JSON.parse(document.getElementById('pm-initial').textContent || '[]');
+          paymentMethodsData = Array.isArray(rawPm) ? rawPm : [];
+        } catch (err) { paymentMethodsData = []; }
+        let editingPaymentIndex = -1;
+
+        function escPm(value) {
+          return String(value == null ? '' : value)
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        function renderPaymentMethods() {
+          const box = document.getElementById('pm-list');
+          if (!box) return;
+          if (!paymentMethodsData.length) {
+            box.innerHTML = '<div style="color:#94a3b8;font-size:.85rem">لا توجد طرق دفع بعد — أضف واحدة ليظهر زر الدفع في تطبيق بوردي.</div>';
+            return;
+          }
+          box.innerHTML = paymentMethodsData.map(function (m, i) {
+            return '<div style="display:flex;align-items:center;gap:.75rem;padding:.6rem .75rem;border:1px solid #334155;border-radius:10px">'
+              + '<div style="flex:1;min-width:0">'
+              + '<div style="font-weight:600">' + escPm(m.name) + '</div>'
+              + '<div style="font-family:monospace;font-size:.85rem" dir="ltr">' + escPm(m.account) + '</div>'
+              + (m.note ? '<div style="color:#94a3b8;font-size:.8rem">' + escPm(m.note) + '</div>' : '')
+              + '</div>'
+              + '<button type="button" class="btn btn-secondary" onclick="openPaymentForm(' + i + ')" style="font-size:.75rem">تعديل</button>'
+              + '<button type="button" class="btn btn-danger" onclick="deletePaymentMethod(' + i + ')" style="font-size:.75rem">حذف</button>'
+              + '</div>';
+          }).join('');
+        }
+
+        function openPaymentForm(index) {
+          editingPaymentIndex = typeof index === 'number' ? index : -1;
+          const current = editingPaymentIndex >= 0 ? paymentMethodsData[editingPaymentIndex] : null;
+          document.getElementById('pm-name').value = current ? current.name : '';
+          document.getElementById('pm-account').value = current ? current.account : '';
+          document.getElementById('pm-note').value = current && current.note ? current.note : '';
+          document.getElementById('pm-error').textContent = '';
+          document.getElementById('pm-form').style.display = 'block';
+          document.getElementById('pm-name').focus();
+        }
+
+        function closePaymentForm() {
+          editingPaymentIndex = -1;
+          document.getElementById('pm-form').style.display = 'none';
+        }
+
+        function savePaymentForm() {
+          const name = document.getElementById('pm-name').value.trim();
+          const account = document.getElementById('pm-account').value.trim();
+          const note = document.getElementById('pm-note').value.trim();
+          if (!name || !account) {
+            document.getElementById('pm-error').textContent = 'اسم الطريقة ورقم التحويل مطلوبان.';
+            return;
+          }
+          const entry = { name: name, account: account, note: note };
+          if (editingPaymentIndex >= 0) paymentMethodsData[editingPaymentIndex] = entry;
+          else paymentMethodsData.push(entry);
+          closePaymentForm();
+          renderPaymentMethods();
+        }
+
+        function deletePaymentMethod(index) {
+          if (!confirm('حذف طريقة الدفع «' + paymentMethodsData[index].name + '»؟')) return;
+          paymentMethodsData.splice(index, 1);
+          renderPaymentMethods();
+        }
+
+        renderPaymentMethods();
+      </script>
+      <div class="form-grid">
+        <div class="form-group">
+          <label>واتساب الدعم (رابط أو رقم)</label>
+          <input type="text" id="set-wa" value="${escapeHtml(settings.support_whatsapp || '')}" placeholder="https://wa.me/9647XXXXXXXXX">
+        </div>
+        <div class="form-group">
+          <label>تيليجرام الدعم</label>
+          <input type="text" id="set-tg" value="${escapeHtml(settings.support_telegram || '')}" placeholder="https://t.me/username">
+        </div>
+      </div>
+      <p style="color:#94a3b8;font-size:.8rem;margin-bottom:1rem">⚠️ لا تترك رقم الدعم بقيم XXXXXXXX — زر التأكيد عبر واتساب يعتمد عليه.</p>
+      <h3 style="margin:1.5rem 0 1rem;color:#60a5fa">📄 الشروط والخصوصية <span class="section-num">4</span></h3>
       <div class="form-grid">
         <div class="form-group">
           <label>شروط الخدمة</label>
@@ -434,25 +619,10 @@ button,.btn{padding:.5rem 1rem;border:none;border-radius:6px;cursor:pointer;font
           <select id="set-maint"><option value="off" ${settings.maintenance !== 'on' ? 'selected' : ''}>إيقاف</option><option value="on" ${settings.maintenance === 'on' ? 'selected' : ''}>تشغيل</option></select>
         </div>
       </div>
-      <div class="form-group">
-        <label>طرق الدفع (JSON)</label>
-        <textarea id="set-payment" style="min-height:100px;font-family:monospace">${escapeHtml(settings.payment_methods || '[]')}</textarea>
-      </div>
-      <div class="form-grid">
-        <div class="form-group">
-          <label>واتساب الدعم (رابط أو رقم)</label>
-          <input type="text" id="set-wa" value="${escapeHtml(settings.support_whatsapp || '')}" placeholder="https://wa.me/9647XXXXXXXXX">
-        </div>
-        <div class="form-group">
-          <label>تيليجرام الدعم</label>
-          <input type="text" id="set-tg" value="${escapeHtml(settings.support_telegram || '')}" placeholder="https://t.me/username">
-        </div>
-      </div>
-      <p style="color:#94a3b8;font-size:.8rem;margin-bottom:1rem">⚠️ لا تترك رقم الدعم بقيم XXXXXXXX — زر التأكيد عبر واتساب يعتمد عليه.</p>
       <button type="submit" class="btn btn-primary">💾 حفظ الإعدادات</button>
     </form>
     <hr style="border-color:#334155;margin:2rem 0">
-    <h3 style="margin-bottom:1rem;color:#f87171">⚠️ منطقة الخطر</h3>
+    <h3 style="margin-bottom:1rem;color:#f87171">⚠️ منطقة الخطر <span class="section-num">5</span></h3>
     <div class="flex" style="gap:.5rem;flex-wrap:wrap">
       <button type="button" class="btn btn-danger" onclick="wipeEvents()">🗑️ مسح كل سجل الأحداث</button>
       <button type="button" class="btn btn-warning" onclick="resetRateLimits()">♻️ تصفير حدود المعدل</button>
@@ -504,9 +674,21 @@ button,.btn{padding:.5rem 1rem;border:none;border-radius:6px;cursor:pointer;font
       <div class="form-group"><label>الهاتف</label><input type="text" id="dv-phone" placeholder="07XXXXXXXXX"></div>
     </div>
     <div class="form-group"><label>ملاحظات</label><input type="text" id="dv-notes"></div>
-    <div class="form-grid">
-      <div class="form-group"><label>مدفوع حتى (بغداد)</label><input type="datetime-local" id="dv-paid-until"></div>
-      <div class="form-group"><label>نهاية التجربة</label><input type="datetime-local" id="dv-trial-ends"></div>
+    <div class="form-group">
+      <label>الاشتراك المدفوع — مدفوع حتى (بغداد)</label>
+      <div style="display:flex;gap:.5rem;align-items:center">
+        <input type="datetime-local" id="dv-paid-until" style="flex:1">
+        <button type="button" class="btn btn-secondary" onclick="zeroPaid()" style="font-size:.75rem;white-space:nowrap">تصفير</button>
+      </div>
+      <small id="dv-paid-hint" style="color:#94a3b8;font-size:.75rem"></small>
+    </div>
+    <div class="form-group">
+      <label>التجربة المجانية — تنتهي في (بغداد)</label>
+      <div style="display:flex;gap:.5rem;align-items:center">
+        <input type="datetime-local" id="dv-trial-ends" style="flex:1">
+        <button type="button" class="btn btn-secondary" onclick="zeroTrial()" style="font-size:.75rem;white-space:nowrap">تصفير</button>
+      </div>
+      <small style="color:#94a3b8;font-size:.75rem">آخر لحظة تُحسب فيها التجربة المجانية؛ بعدها يتوقف التطبيق إن لم يوجد اشتراك مدفوع. العدّ يستمر في الخلفية حتى أثناء مدى الحياة. التصفير = لا تجربة متبقية.</small>
     </div>
     <div class="flex" style="gap:.5rem;margin:.25rem 0 .5rem;flex-wrap:wrap">
       <button type="button" class="btn btn-success" onclick="quickExtend(30)" style="font-size:.8rem">+30 يوم</button>
@@ -516,7 +698,7 @@ button,.btn{padding:.5rem 1rem;border:none;border-radius:6px;cursor:pointer;font
     </div>
     <div class="flex" style="gap:.5rem;margin:.25rem 0 1rem;flex-wrap:wrap">
       <label style="font-size:.8rem;color:#94a3b8;align-self:center">إعادة التجربة:</label>
-      <input type="number" id="dv-trial-value" value="7" min="1" step="any" style="max-width:100px">
+      <input type="number" id="dv-trial-value" value="7" min="0" step="any" style="max-width:100px">
       <select id="dv-trial-unit" style="max-width:110px">
         <option value="days" selected>يوم</option>
         <option value="hours">ساعة</option>
@@ -532,7 +714,8 @@ button,.btn{padding:.5rem 1rem;border:none;border-radius:6px;cursor:pointer;font
       </div>
       <div class="form-group"><label>سبب الحظر</label><input type="text" id="dv-block-reason" placeholder="يظهر داخل التطبيق"></div>
     </div>
-    <label style="display:flex;align-items:center;gap:.5rem;margin:.5rem 0 1rem;font-size:.9rem"><input type="checkbox" id="dv-lifetime" style="width:auto"> اشتراك مدى الحياة</label>
+    <label style="display:flex;align-items:center;gap:.5rem;margin:.5rem 0 .25rem;font-size:.9rem"><input type="checkbox" id="dv-lifetime" style="width:auto" onchange="toggleLifetime(this.checked)"> اشتراك مدى الحياة</label>
+    <small style="display:block;color:#94a3b8;font-size:.75rem;margin-bottom:1rem">يُطبَّق فوراً عند التحديد أو الإلغاء؛ إلغاؤه يعيد العرض إلى ما تبقّى فعلاً من الاشتراك أو التجربة.</small>
     <div class="flex" style="gap:.5rem">
       <button type="button" class="btn btn-primary" onclick="saveDevice()" style="flex:1">💾 حفظ التعديلات</button>
       <button type="button" class="btn btn-danger" onclick="deleteDevice()">🗑️ حذف المشترك بالكامل</button>
@@ -918,7 +1101,11 @@ async function searchDevices() {
       + '<td>' + (d.name ? esc(d.name) : '-') + '</td>'
       + '<td>' + (d.phone ? esc(d.phone) : '-') + '</td>'
       + '<td>' + (d.model ? esc(d.model) : '-') + '</td>'
-      + '<td>' + (d.paid_until > 0 ? fmtDate(d.paid_until) : '-') + '</td>'
+      + '<td>' + (d.lifetime
+          ? 'مدى الحياة' + (d.paid_until > now && d.paid_until < now + 50 * 365 * 86400000
+              ? ' <span style="color:#94a3b8;font-size:.75rem">(مدفوع حتى ' + fmtDate(d.paid_until) + ')</span>'
+              : '')
+          : (d.paid_until > 0 ? fmtDate(d.paid_until) : '-')) + '</td>'
       + '<td>' + (d.trial_ends_at ? fmtDate(d.trial_ends_at) : '-') + '</td>'
       + '<td>' + (d.last_seen ? fmtDate(d.last_seen) : '-') + '</td>'
       + '<td><button class="btn btn-primary" onclick="openDeviceModal(\\'' + d.device_id + '\\')" style="font-size:.75rem">✏️ تعديل</button> '
@@ -950,11 +1137,7 @@ async function openDeviceModal(did) {
   document.getElementById('dv-name').value = d.name || '';
   document.getElementById('dv-phone').value = d.phone || '';
   document.getElementById('dv-notes').value = d.notes || '';
-  document.getElementById('dv-paid-until').value = msToBaghdadInput(d.paid_until || 0);
-  document.getElementById('dv-trial-ends').value = msToBaghdadInput(d.trial_ends_at || 0);
-  document.getElementById('dv-blocked').value = d.blocked ? '1' : '0';
-  document.getElementById('dv-block-reason').value = d.block_reason || '';
-  document.getElementById('dv-lifetime').checked = !!d.lifetime;
+  applyDeviceToForm(d);
   document.getElementById('dv-msg').textContent = '';
   document.getElementById('dv-summary').innerHTML =
     'ID: <code>' + esc(d.device_id) + '</code> • الموديل: ' + esc(d.model || '-')
@@ -963,28 +1146,49 @@ async function openDeviceModal(did) {
   showModal('device-modal');
 }
 
-async function saveDevice() {
+/** Fills only the server-owned fields, so unsaved name/phone edits in the form survive. */
+function applyDeviceToForm(d) {
+  editingDevice = d;
+  document.getElementById('dv-paid-until').value = msToBaghdadInput(d.paid_until || 0);
+  document.getElementById('dv-trial-ends').value = msToBaghdadInput(d.trial_ends_at || 0);
+  document.getElementById('dv-blocked').value = d.blocked ? '1' : '0';
+  document.getElementById('dv-block-reason').value = d.block_reason || '';
+  document.getElementById('dv-lifetime').checked = !!d.lifetime;
+  applyLifetimeUI(!!d.lifetime);
+}
+
+async function saveDevice(opts) {
   const did = document.getElementById('dv-id').value;
   const body = {
     action: 'update',
     name: document.getElementById('dv-name').value.trim(),
     phone: document.getElementById('dv-phone').value.trim(),
     notes: document.getElementById('dv-notes').value.trim(),
-    paid_until: baghdadInputToMs(document.getElementById('dv-paid-until').value),
-    trial_ends_at: baghdadInputToMs(document.getElementById('dv-trial-ends').value),
+    // An empty field means "no paid subscription / no trial left", not "keep the old value".
+    trial_ends_at: baghdadInputToMs(document.getElementById('dv-trial-ends').value) ?? 0,
     lifetime: document.getElementById('dv-lifetime').checked,
     blocked: document.getElementById('dv-blocked').value === '1',
     block_reason: document.getElementById('dv-block-reason').value.trim(),
   };
+  // While lifetime is on, the stored paid date is preserved server-side and keeps counting
+  // down in the background, so the field is not sent (it is disabled in the form anyway).
+  if (!body.lifetime) {
+    body.paid_until = baghdadInputToMs(document.getElementById('dv-paid-until').value) ?? 0;
+  }
   const res = await api('device/' + encodeURIComponent(did), {
     method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
   });
   if (res.ok) {
-    hideModal('device-modal');
+    if (opts && opts.keepOpen) {
+      if (res.device) applyDeviceToForm(res.device);
+    } else {
+      hideModal('device-modal');
+    }
     searchDevices();
-  } else {
-    document.getElementById('dv-msg').textContent = res.error || 'تعذر الحفظ';
+    return true;
   }
+  document.getElementById('dv-msg').textContent = res.error || 'تعذر الحفظ';
+  return false;
 }
 
 async function deviceAction(payload) {
@@ -993,18 +1197,53 @@ async function deviceAction(payload) {
     method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
   });
   if (!res.ok) { document.getElementById('dv-msg').textContent = res.error || 'تعذر التنفيذ'; return false; }
-  // Apply only the server-owned fields so unsaved name/phone edits in the form survive.
-  const d = res.device;
-  if (d) {
-    editingDevice = d;
-    document.getElementById('dv-paid-until').value = msToBaghdadInput(d.paid_until || 0);
-    document.getElementById('dv-trial-ends').value = msToBaghdadInput(d.trial_ends_at || 0);
-    document.getElementById('dv-blocked').value = d.blocked ? '1' : '0';
-    document.getElementById('dv-block-reason').value = d.block_reason || '';
-    document.getElementById('dv-lifetime').checked = !!d.lifetime;
-    document.getElementById('dv-msg').textContent = '';
-  }
+  if (res.device) applyDeviceToForm(res.device);
+  document.getElementById('dv-msg').textContent = '';
   return true;
+}
+
+/** Lifetime hides the paid date but never clears it: it keeps counting down in the database. */
+function applyLifetimeUI(lifetime) {
+  const paid = document.getElementById('dv-paid-until');
+  const hint = document.getElementById('dv-paid-hint');
+  paid.disabled = !!lifetime;
+  if (lifetime) {
+    // The stored date is irrelevant while lifetime is on (the app never looks at it then),
+    // and for old rows it may be a 100-year sentinel — so don't show a misleading date.
+    paid.value = '';
+    hint.textContent = 'مدى الحياة مفعّل — تاريخ الاشتراك المدفوع محفوظ ويستمر بالنقصان في الخلفية، ويعود تلقائياً عند إلغاء مدى الحياة.';
+  } else {
+    hint.textContent = 'اتركه فارغاً أو صفّره إن لم يكن هناك اشتراك مدفوع.';
+  }
+}
+
+/**
+ * Enabling saves the whole form so a date typed just before ticking is not lost.
+ * Disabling goes through set_lifetime, which keeps the stored paid date; the update action
+ * cannot be used because the paid field is empty while lifetime is on and would zero it.
+ */
+async function toggleLifetime(on) {
+  if (on) {
+    if (!(await saveDevice({ keepOpen: true }))) {
+      document.getElementById('dv-lifetime').checked = false;
+      applyLifetimeUI(false);
+    }
+    return;
+  }
+  if (!(await deviceAction({ action: 'set_lifetime', value: false }))) {
+    document.getElementById('dv-lifetime').checked = true;
+    applyLifetimeUI(true);
+    return;
+  }
+  searchDevices();
+}
+
+async function zeroPaid() {
+  if (await deviceAction({ action: 'zero_paid' })) searchDevices();
+}
+
+async function zeroTrial() {
+  if (await deviceAction({ action: 'zero_trial' })) searchDevices();
 }
 
 async function quickExtend(days) {
@@ -1019,7 +1258,9 @@ async function resetTrial() {
   const value = parseFloat(document.getElementById('dv-trial-value').value || '7');
   const unit = document.getElementById('dv-trial-unit').value;
   const seconds = Math.round(value * (UNIT_SECONDS[unit] || 86400));
-  if (!Number.isFinite(seconds) || seconds < 30) { document.getElementById('dv-msg').textContent = 'المدة قصيرة جداً (30 ثانية كحد أدنى)'; return; }
+  if (!Number.isFinite(seconds) || seconds < 0) { document.getElementById('dv-msg').textContent = 'المدة غير صالحة'; return; }
+  if (seconds === 0) { if (await deviceAction({ action: 'zero_trial' })) searchDevices(); return; }
+  if (seconds < 30) { document.getElementById('dv-msg').textContent = 'المدة قصيرة جداً (30 ثانية كحد أدنى، أو 0 للتصفير)'; return; }
   if (await deviceAction({ action: 'reset_trial', seconds })) searchDevices();
 }
 
@@ -1244,8 +1485,8 @@ async function saveSettings(e) {
   const trialValue = parseFloat(document.getElementById('set-trial-value').value || '7');
   const trialUnit = document.getElementById('set-trial-unit').value;
   const trialSeconds = Math.round(trialValue * (UNIT_SECONDS[trialUnit] || 86400));
-  if (!Number.isFinite(trialSeconds) || trialSeconds < 30) {
-    alert('مدة التجربة قصيرة جداً (30 ثانية كحد أدنى)');
+  if (!Number.isFinite(trialSeconds) || trialSeconds < 0 || (trialSeconds > 0 && trialSeconds < 30)) {
+    alert('مدة التجربة يجب أن تكون 0 (بلا تجربة) أو 30 ثانية على الأقل');
     return;
   }
   const body = {
@@ -1253,7 +1494,7 @@ async function saveSettings(e) {
     privacy_text: document.getElementById('set-privacy').value,
     tos_version: document.getElementById('set-tos-ver').value,
     maintenance: document.getElementById('set-maint').value,
-    payment_methods: document.getElementById('set-payment').value,
+    payment_methods: JSON.stringify(paymentMethodsData),
     support_whatsapp: document.getElementById('set-wa').value,
     support_telegram: document.getElementById('set-tg').value,
     sync_interval_seconds: document.getElementById('set-sync').value,
@@ -1261,13 +1502,34 @@ async function saveSettings(e) {
     trial_seconds: trialSeconds,
     paid_token_ttl_days: document.getElementById('set-ttl').value,
     grace_days: document.getElementById('set-grace').value,
-    min_app_version: document.getElementById('set-minv').value,
+    min_app_version: document.getElementById('set-minv').value.trim(),
+    bot_notifications_enabled: document.getElementById('set-bot').checked ? '1' : '0',
+    expiry_notice_enabled: document.getElementById('set-notice-enabled').checked ? '1' : '0',
+    expiry_notice_unit: document.getElementById('set-notice-unit').value,
+    expiry_notice_value: document.getElementById('set-notice-value').value,
   };
+  if (!paymentMethodsData.length) { alert('أضف طريقة دفع واحدة على الأقل قبل الحفظ'); return; }
+  if (!/^\d+(\.\d+){0,3}$/.test(body.min_app_version)) { alert('أقل إصدار غير صالح — استخدم صيغة مثل 1.0'); return; }
   const res = await api('settings', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
   if (!res.ok) { alert('تعذر الحفظ: ' + (res.error || 'خطأ غير معروف')); return; }
   alert('تم الحفظ — ستظهر التغييرات في التطبيق خلال ثوانٍ');
   location.reload();
 }
+
+// Live preview for the expiry notice shown in the Bordy app.
+function refreshNoticePreview() {
+  const valueEl = document.getElementById('set-notice-value');
+  const unitEl = document.getElementById('set-notice-unit');
+  const preview = document.getElementById('notice-preview');
+  if (!valueEl || !unitEl || !preview) return;
+  const value = parseInt(valueEl.value || '0', 10);
+  const unit = unitEl.value;
+  const label = unit === 'days' ? 'يوم' : unit === 'hours' ? 'ساعة' : 'دقيقة';
+  preview.textContent = 'باقي على انتهاء اشتراكك ' + (Number.isFinite(value) && value > 0 ? value : '?') + ' ' + label;
+}
+document.addEventListener('input', (ev) => {
+  if (ev.target && (ev.target.id === 'set-notice-value' || ev.target.id === 'set-notice-unit')) refreshNoticePreview();
+});
 
 async function exportCSV() {
   const data = await api('export');
@@ -1310,6 +1572,36 @@ searchDevices();
 }
 
 // --- API handlers ---
+
+/** Same counters as the dashboard cards, exposed for the admin Android app. */
+async function apiStats(env: Env): Promise<Response> {
+  const now = Date.now();
+  const sevenDays = now + 7 * 86400000;
+  const thirtyDays = now - 30 * 86400000;
+
+  const results = await env.DB.batch([
+    env.DB.prepare('SELECT COUNT(*) as c FROM devices WHERE paid_until > ? OR lifetime = 1').bind(now),
+    env.DB.prepare('SELECT COUNT(*) as c FROM devices WHERE trial_ends_at > ? AND paid_until < ? AND lifetime = 0').bind(now, now),
+    env.DB.prepare('SELECT COUNT(*) as c FROM devices WHERE paid_until < ? AND (trial_ends_at IS NULL OR trial_ends_at < ?) AND lifetime = 0').bind(now, now),
+    env.DB.prepare('SELECT COUNT(*) as c FROM devices WHERE paid_until > ? AND paid_until < ? AND lifetime = 0').bind(now, sevenDays),
+    env.DB.prepare(`SELECT COALESCE(SUM(final_price), 0) as c FROM orders WHERE status = 'APPROVED' AND decided_at > ?`).bind(thirtyDays),
+    env.DB.prepare(`SELECT COUNT(*) as c FROM orders WHERE status IN ('PENDING','SUBMITTED')`),
+  ]);
+
+  const count = (i: number) => Number((results[i].results[0] as any)?.c || 0);
+  return Response.json({
+    ok: true,
+    stats: {
+      active_subs: count(0),
+      trials: count(1),
+      expired: count(2),
+      expiring_in_7: count(3),
+      monthly_revenue: count(4),
+      pending_orders: count(5),
+    },
+    server_time: now,
+  });
+}
 
 async function apiDevices(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
@@ -1635,7 +1927,9 @@ async function apiUpdateDevice(request: Request, deviceId: string, env: Env): Pr
     const blocked = body.blocked === true || body.blocked === 'true' || body.blocked === 1 ? 1 : 0;
     const reason = blocked ? (clampText(body.block_reason, 200) || 'محظور من الإدارة') : null;
     const lifetime = body.lifetime === true || body.lifetime === 'true' ? 1 : 0;
-    const finalPaidUntil = lifetime ? now + 100 * 365 * 86400000 : paidUntil;
+    // Lifetime is a flag, not a sentinel date: the real paid date must survive so it keeps
+    // counting down while lifetime is on and is restored the moment lifetime is removed.
+    const finalPaidUntil = paidUntil;
 
     await env.DB.prepare(
       `UPDATE devices SET name = ?, phone = ?, notes = ?, paid_until = ?, trial_ends_at = ?,
@@ -1665,36 +1959,53 @@ async function apiUpdateDevice(request: Request, deviceId: string, env: Env): Pr
     if (!Number.isFinite(days) || days < 1 || days > 3650) {
       return Response.json({ ok: false, error: 'عدد الأيام غير صالح' }, { status: 400 });
     }
+    // Must not touch the lifetime flag: extending a lifetime device only adds background
+    // paid time, matching the Telegram bot's behaviour.
     const base = Math.max(now, device.paid_until || 0);
-    stmts.push(env.DB.prepare('UPDATE devices SET paid_until = ?, lifetime = 0 WHERE device_id = ?')
+    stmts.push(env.DB.prepare('UPDATE devices SET paid_until = ? WHERE device_id = ?')
       .bind(base + days * 86400000, deviceId));
     await logEvent(env.DB, deviceId, 'ADMIN_EXTEND', `+${days}d via panel`, 'admin');
   } else if (body.action === 'set_lifetime') {
     const on = body.value === true || body.value === 'true' || body.value === 1;
     if (on) {
-      stmts.push(env.DB.prepare('UPDATE devices SET lifetime = 1, paid_until = ? WHERE device_id = ?')
-        .bind(now + 100 * 365 * 86400000, deviceId));
+      // Turning lifetime on only sets the flag; paid_until is left untouched so the paid
+      // period (or trial) keeps elapsing in the background.
+      stmts.push(env.DB.prepare('UPDATE devices SET lifetime = 1 WHERE device_id = ?').bind(deviceId));
     } else {
+      // Older rows stored a 100-year sentinel instead of a real date — there is nothing
+      // left to restore, so treat it as "no paid subscription".
+      const legacySentinel = (device.paid_until || 0) > now + 50 * 365 * 86400000;
       stmts.push(env.DB.prepare('UPDATE devices SET lifetime = 0, paid_until = ? WHERE device_id = ?')
-        .bind(now, deviceId));
+        .bind(legacySentinel ? 0 : device.paid_until, deviceId));
     }
     await logEvent(env.DB, deviceId, 'ADMIN_LIFETIME', on ? 'Lifetime enabled' : 'Lifetime disabled', 'admin');
+  } else if (body.action === 'zero_paid') {
+    stmts.push(env.DB.prepare('UPDATE devices SET paid_until = 0 WHERE device_id = ?').bind(deviceId));
+    await logEvent(env.DB, deviceId, 'ADMIN_ZERO_PAID', 'Paid period cleared via panel', 'admin');
+  } else if (body.action === 'zero_trial') {
+    stmts.push(env.DB.prepare('UPDATE devices SET trial_ends_at = 0 WHERE device_id = ?').bind(deviceId));
+    await logEvent(env.DB, deviceId, 'ADMIN_ZERO_TRIAL', 'Trial cleared via panel', 'admin');
   } else if (body.action === 'reset_trial') {
-    // Accepts seconds (preferred) or the legacy whole-days field.
+    // Accepts seconds (preferred) or the legacy whole-days field. Zero ends the trial now.
     const seconds = body.seconds !== null && body.seconds !== undefined && body.seconds !== ''
       ? Math.round(Number(body.seconds))
       : Math.round((parseInt(body.days || '7', 10) || 7) * 86400);
-    if (!Number.isFinite(seconds) || seconds < TRIAL_MIN_SECONDS || seconds > TRIAL_MAX_SECONDS) {
-      return Response.json({
-        ok: false,
-        error: `مدة التجربة يجب أن تكون بين ${TRIAL_MIN_SECONDS} و${TRIAL_MAX_SECONDS} ثانية`,
-      }, { status: 400 });
+    if (seconds === 0) {
+      stmts.push(env.DB.prepare('UPDATE devices SET trial_ends_at = 0 WHERE device_id = ?').bind(deviceId));
+      await logEvent(env.DB, deviceId, 'ADMIN_ZERO_TRIAL', 'Trial cleared via reset', 'admin');
+    } else {
+      if (!Number.isFinite(seconds) || seconds < TRIAL_MIN_SECONDS || seconds > TRIAL_MAX_SECONDS) {
+        return Response.json({
+          ok: false,
+          error: `مدة التجربة يجب أن تكون بين ${TRIAL_MIN_SECONDS} و${TRIAL_MAX_SECONDS} ثانية، أو 0 للتصفير`,
+        }, { status: 400 });
+      }
+      const end = now + seconds * 1000;
+      stmts.push(env.DB.prepare(
+        'UPDATE devices SET trial_started_at = ?, trial_ends_at = ?, blocked = 0, block_reason = NULL WHERE device_id = ?'
+      ).bind(now, end, deviceId));
+      await logEvent(env.DB, deviceId, 'ADMIN_RESET_TRIAL', `trial restarted for ${seconds}s`, 'admin');
     }
-    const end = now + seconds * 1000;
-    stmts.push(env.DB.prepare(
-      'UPDATE devices SET trial_started_at = ?, trial_ends_at = ?, blocked = 0, block_reason = NULL WHERE device_id = ?'
-    ).bind(now, end, deviceId));
-    await logEvent(env.DB, deviceId, 'ADMIN_RESET_TRIAL', `trial restarted for ${seconds}s`, 'admin');
   } else if (body.action === 'delete') {
     // Typed confirmation: this wipes the subscriber so the device re-registers as brand new.
     if (body.confirm !== 'DELETE') {
@@ -1805,14 +2116,16 @@ async function apiUpdateSettings(request: Request, env: Env): Promise<Response> 
   if (body.trial_seconds !== undefined) {
     const raw = String(body.trial_seconds).trim();
     const value = Number(raw);
-    if (!/^\d+$/.test(raw) || !Number.isFinite(value) || value < TRIAL_MIN_SECONDS || value > TRIAL_MAX_SECONDS) {
+    // 0 disables the free trial for new devices; otherwise keep the sane lower bound.
+    if (!/^\d+$/.test(raw) || !Number.isFinite(value) || value > TRIAL_MAX_SECONDS
+      || (value !== 0 && value < TRIAL_MIN_SECONDS)) {
       return Response.json({
         ok: false,
-        error: `مدة التجربة يجب أن تكون رقماً بين ${TRIAL_MIN_SECONDS} و${TRIAL_MAX_SECONDS} ثانية`,
+        error: `مدة التجربة يجب أن تكون 0 (بلا تجربة) أو بين ${TRIAL_MIN_SECONDS} و${TRIAL_MAX_SECONDS} ثانية`,
       }, { status: 400 });
     }
     staged.set('trial_seconds', String(Math.round(value)));
-    staged.set('trial_days', String(Math.max(1, Math.ceil(value / 86400))));
+    staged.set('trial_days', String(value === 0 ? 0 : Math.max(1, Math.ceil(value / 86400))));
   }
   if (body.paid_token_ttl_days !== undefined) {
     const value = parseInt(String(body.paid_token_ttl_days).trim(), 10);
@@ -1829,20 +2142,81 @@ async function apiUpdateSettings(request: Request, env: Env): Promise<Response> 
     staged.set('grace_days', String(value));
   }
   if (body.min_app_version !== undefined) {
-    const value = parseInt(String(body.min_app_version).trim(), 10);
-    if (!Number.isFinite(value) || value < 0) {
-      return Response.json({ ok: false, error: 'أقل إصدار غير صالح' }, { status: 400 });
+    const value = String(body.min_app_version).trim();
+    if (!/^\d+(\.\d+){0,3}$/.test(value)) {
+      return Response.json({ ok: false, error: 'أقل إصدار غير صالح — استخدم صيغة مثل 1.0 أو 1.2' }, { status: 400 });
     }
-    staged.set('min_app_version', String(value));
+    staged.set('min_app_version', value);
   }
   if (body.maintenance !== undefined) {
     staged.set('maintenance', body.maintenance === true || body.maintenance === 'on' ? 'on' : 'off');
+  }
+
+  if (body.bot_notifications_enabled !== undefined) {
+    staged.set('bot_notifications_enabled', expiryNoticeEnabled(body.bot_notifications_enabled) ? '1' : '0');
+  }
+
+  if (body.expiry_notice_enabled !== undefined) {
+    staged.set('expiry_notice_enabled', expiryNoticeEnabled(body.expiry_notice_enabled) ? '1' : '0');
+  }
+
+  if (body.expiry_notice_unit !== undefined) {
+    const raw = String(body.expiry_notice_unit).trim();
+    if (!EXPIRY_NOTICE_UNITS.includes(raw as any)) {
+      return Response.json({ ok: false, error: 'وحدة التنبيه يجب أن تكون days أو hours أو minutes' }, { status: 400 });
+    }
+    staged.set('expiry_notice_unit', raw);
+  }
+
+  if (body.expiry_notice_value !== undefined) {
+    // Validate against the unit in the same request so "365" cannot sneak in as minutes-of-days.
+    const unit = clampExpiryNoticeUnit(staged.get('expiry_notice_unit'));
+    const raw = String(body.expiry_notice_value).trim();
+    const value = parseInt(raw, 10);
+    const max = unit === 'days' ? 365 : unit === 'hours' ? 8760 : 525600;
+    if (!/^\d+$/.test(raw) || !Number.isFinite(value) || value < 1 || value > max) {
+      return Response.json({
+        ok: false,
+        error: `قيمة التنبيه يجب أن تكون رقماً بين 1 و${max} (${unit})`,
+      }, { status: 400 });
+    }
+    staged.set('expiry_notice_value', String(value));
   }
 
   await Promise.all(Array.from(staged, ([key, value]) => setSetting(env.DB, key, value)));
   await logEvent(env.DB, null, 'SETTINGS_UPDATE', 'Settings updated via panel', 'admin');
 
   return Response.json({ ok: true });
+}
+
+async function apiGetSettings(env: Env): Promise<Response> {
+  const settings = await getSettings(env.DB, [
+    'tos_text', 'privacy_text', 'tos_version', 'payment_methods',
+    'sync_interval_seconds', 'foreground_sync_seconds',
+    'trial_seconds', 'trial_days', 'paid_token_ttl_days', 'grace_days', 'min_app_version',
+    'maintenance', 'support_whatsapp', 'support_telegram',
+    'bot_notifications_enabled', 'expiry_notice_enabled', 'expiry_notice_unit', 'expiry_notice_value',
+  ]);
+  const trialSeconds = clampTrialSeconds(settings.trial_seconds, settings.trial_days);
+  const noticeUnit = clampExpiryNoticeUnit(settings.expiry_notice_unit);
+  // The admin app should not need to know clamp rules; return the effective values too.
+  return Response.json({
+    ok: true,
+    settings,
+    effective: {
+      trial_seconds: trialSeconds,
+      sync_interval_seconds: clampSyncInterval(settings.sync_interval_seconds),
+      foreground_sync_seconds: clampForegroundSync(settings.foreground_sync_seconds),
+      paid_token_ttl_days: parseInt(settings.paid_token_ttl_days || '7', 10),
+      grace_days: parseInt(settings.grace_days || '2', 10),
+      min_app_version: String(settings.min_app_version || '1'),
+      maintenance: settings.maintenance === 'on',
+      bot_notifications_enabled: expiryNoticeEnabled(settings.bot_notifications_enabled),
+      expiry_notice_enabled: expiryNoticeEnabled(settings.expiry_notice_enabled),
+      expiry_notice_unit: noticeUnit,
+      expiry_notice_value: clampExpiryNoticeValue(settings.expiry_notice_value, noticeUnit),
+    },
+  });
 }
 
 async function apiExport(env: Env): Promise<Response> {

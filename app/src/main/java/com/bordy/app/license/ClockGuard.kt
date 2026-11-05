@@ -12,6 +12,8 @@ object ClockGuard {
 
     private const val FILE_NAME = "clock.dat"
     private const val ALLOWED_DRIFT_MS = 10 * 60 * 1000L // 10 minutes
+    // check() runs from the UI ticker; writing on every call would wear flash for no gain.
+    private const val MIN_WRITE_GAP_MS = 60 * 1000L
 
     enum class Result { OK, TAMPER }
 
@@ -31,10 +33,12 @@ object ClockGuard {
         return if (now < maxSeen - ALLOWED_DRIFT_MS) {
             Result.TAMPER
         } else {
-            val newMax = maxOf(maxSeen, now)
-            try {
-                file.writeText(newMax.toString())
-            } catch (_: Exception) {}
+            if (now - maxSeen >= MIN_WRITE_GAP_MS) {
+                val newMax = maxOf(maxSeen, now)
+                try {
+                    file.writeText(newMax.toString())
+                } catch (_: Exception) {}
+            }
             Result.OK
         }
     }

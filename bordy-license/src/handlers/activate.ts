@@ -39,15 +39,15 @@ export async function handleActivate(request: Request, env: Env): Promise<Respon
   const trialSeconds = clampTrialSeconds(settings.trial_seconds, settings.trial_days);
   const paidTtlDays = parseInt(settings.paid_token_ttl_days || '7');
   const graceDays = parseInt(settings.grace_days || '2');
-  const minAppVersion = parseInt(settings.min_app_version || '1');
+  const minAppVersion = String(settings.min_app_version || '1').trim() || '1';
   const tosVersion = parseInt(settings.tos_version || '1');
 
   let device = await getDevice(env.DB, body.did);
   let isNew = false;
 
   if (!device) {
-    // New device → start trial
-    const trialEnd = now + trialSeconds * 1000;
+    // New device → start trial; a zero-length trial means the owner disabled it (locked until paid).
+    const trialEnd = trialSeconds > 0 ? now + trialSeconds * 1000 : 0;
     await insertDevice(env.DB, {
       device_id: body.did,
       first_seen: now,
@@ -59,7 +59,9 @@ export async function handleActivate(request: Request, env: Env): Promise<Respon
       sdk: body.sdk || 0,
       cert_hash: body.cert_hash || '',
     });
-    await logEvent(env.DB, body.did, 'TRIAL_START', `Trial ends: ${new Date(trialEnd).toISOString()}`);
+    await logEvent(env.DB, body.did, 'TRIAL_START', trialEnd > 0
+      ? `Trial ends: ${new Date(trialEnd).toISOString()}`
+      : 'No free trial (disabled by owner)');
     device = await getDevice(env.DB, body.did);
     isNew = true;
   } else {
@@ -151,7 +153,7 @@ export function buildTokenPayload(
   nonce: string,
   paidTtlDays: number,
   graceDays: number,
-  minAppVersion: number,
+  minAppVersion: string,
   tosVersion: number
 ): TokenPayload {
   let st: 'trial' | 'paid' | 'owner';
@@ -170,6 +172,10 @@ export function buildTokenPayload(
     expBase = Math.min((device.trial_ends_at || 0) + graceDays * 86400000, now + paidTtlDays * 86400000);
   }
 
+  const minVersionName = String(minAppVersion || '').trim() || '1';
+  // Older clients compare the integer field only; keep it a sane floor.
+  const minVersionCode = Math.max(0, parseInt(minVersionName.split('.')[0] || '0', 10) || 0);
+
   return {
     v: 1,
     kid: 'k1',
@@ -180,7 +186,8 @@ export function buildTokenPayload(
     iat: now,
     exp: expBase,
     nonce,
-    minv: minAppVersion,
+    minv: minVersionCode,
+    minv_name: minVersionName,
     tos_ver: tosVersion,
   };
 }

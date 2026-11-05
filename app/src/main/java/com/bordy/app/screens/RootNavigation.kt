@@ -105,7 +105,7 @@ fun RootNavigation(
             vm.togglePricesHidden()
             Toast.makeText(
                 context,
-                "بدون قفل: أضف بصمة أو رمز لتلفونك حتى تأمن هالوضع",
+                "بدون قفل: أضف بصمة أو رمزاً لهاتفك لتأمين هذا الوضع",
                 Toast.LENGTH_LONG
             ).show()
         } else {
@@ -114,7 +114,7 @@ fun RootNavigation(
                 context = context,
                 title = if (pricesHidden) "إظهار الأسعار" else "إخفاء الأسعار",
                 subtitle = if (pricesHidden) "أدخل $authWord لإظهار الأسعار مجدداً"
-                else "أدخل $authWord لعرض البوردات بدون أسعار",
+                else "أدخل $authWord لعرض المشاريع بدون أسعار",
                 onSuccess = { vm.togglePricesHidden() },
                 onFailure = { message -> Toast.makeText(context, message, Toast.LENGTH_LONG).show() }
             )
@@ -230,7 +230,7 @@ fun RootNavigation(
                                     1 -> TemplatesScreen(vm, pricesHidden = pricesHidden)
                                     2 -> ComponentsScreen(vm, pricesHidden = pricesHidden, onOpenSuppliers = {
                                         if (pricesHidden) {
-                                            Toast.makeText(context, "صفحة المجهّزين بيها أسعار الشراء — دخل بصمتك أولاً", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, "صفحة الموردين تتضمن أسعار الشراء — أدخل بصمتك أولاً", Toast.LENGTH_SHORT).show()
                                         } else showSuppliers = true
                                     })
                                     3 -> CalculatorScreen()
@@ -247,7 +247,7 @@ fun RootNavigation(
                     if (id != null) {
                         if (!com.bordy.app.license.IntegrityChecks.ensureConsistency()) {
                             selectedProjectId = null
-                            Toast.makeText(context, "الاشتراك مو مفعّل أو مخلص", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "الاشتراك غير مفعّل أو منتهٍ", Toast.LENGTH_SHORT).show()
                         } else {
                             ProjectDetailScreen(
                                 vm = vm,
@@ -266,8 +266,8 @@ fun RootNavigation(
             onDismissRequest = { showExitConfirm = false },
             shape = DialogShape,
             containerColor = MaterialTheme.colorScheme.surface,
-            title = { Text("تطلع من بوردي؟", fontWeight = FontWeight.Bold) },
-            text = { Text("متأكد تريد تطلع من التطبيق؟") },
+            title = { Text("هل تريد الخروج من بوردي؟", fontWeight = FontWeight.Bold) },
+            text = { Text("هل أنت متأكد من رغبتك في الخروج من التطبيق؟") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -277,12 +277,12 @@ fun RootNavigation(
                     colors = ButtonDefaults.buttonColors(containerColor = SellGreen),
                     shape = CircleShape
                 ) {
-                    Text("اي، اطلع", fontWeight = FontWeight.Bold)
+                    Text("نعم، اخرج", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showExitConfirm = false }, shape = CircleShape) {
-                    Text("لا، ابقى")
+                    Text("لا، ابقَ")
                 }
             }
         )

@@ -37,6 +37,7 @@
 4. `POST /v1/refresh` دوري (WorkManager) + `LicenseWatchReceiver` عند الإقلاع/تغيير الوقت.
 5. انتهاء + انتهاء السماح (يومان) → قفل كامل. أقصى عمل أوفلاين 7 أيام.
 6. دفع يدوي: `POST /v1/orders` → برهان تحويل (`/proof`) → موافقة الأدمن/تيليجرام → تفعيل.
+7. تنبيه «باقي على انتهاء اشتراكك X» يحدد المالك وحدته (أيام/ساعات/دقائق) وقيمته من اللوحة؛ يصل عبر `expiry_notice` في `/v1/plans` و`/v1/sync`، ويُخزَّن محلياً للعمل أوفلاين. اشتراك مدى الحياة لا يعرض أي تنبيه. العدّاد داخل التطبيق يتحدّث كل 20 ثانية من الرمز الموقّع.
 
 ## 4. تدفق المزامنة (v2)
 
@@ -64,6 +65,7 @@
 | `/v2/*` | الحسابات والمزامنة (`account/router.ts`) |
 
 - `cron: "0 5 * * *"` — مهام يومية (انتهاء تجارب/تنبيهات).
+- `/admin/api/*` تتطلب جلسة، والكتابة تتطلب توكن CSRF (`X-CSRF-Token`). `GET /admin/api/settings` يغذي تطبيق إدارة بوردي، و`GET /admin/api/csrf` يجدد التوكن. إشعارات المالك تمر عبر `ownerNotificationsEnabled` (مفتاح `bot_notifications_enabled`)؛ تنبيهات الدخول والأخطاء الأمنية لا تتأثر به.
 - جداول D1: `devices, plans, orders, proofs, codes, code_redemptions, events, rate_limits, settings, accounts, account_licenses, account_devices, refresh_sessions, sync_records, sync_changes, sync_operations, sync_conflicts, sync_assertions, device_transfers, account_audit_events`.
 - أسرار Cloudflare (في `.dev.vars` محلياً): `ACCOUNT_TOKEN_SECRET, PASSWORD_PEPPER, ADMIN_SECRET, ADMIN_TOTP_SECRET, TG_WEBHOOK_SECRET, TG_BOT_TOKEN, OWNER_CHAT_ID`.
 
@@ -73,6 +75,8 @@
 - Android SDK: `C:\Users\BOGEY\AppData\Local\Android\Sdk` (adb في `platform-tools`).
 - الجهاز المستخدم للاختبار: Samsung، السيريال `RFCX31PZFBB` (يُكتشف تلقائياً من `adb devices`).
 - Node 24 / npm 11، wrangler مثبت عالمياً.
+- تطبيق إدارة بوردي (أندرويد، حزمة `com.bordy.admin`): `D:\kk - Copy\إدارة بوردي`. مشروع مستقل يقرأ توقيع الإصدار من `../local.properties` و`../bordy-release.jks`. المسار العربي يمنع `gradlew` من العمل — شغّله بـ `java -jar gradle/wrapper/gradle-wrapper.jar` من داخل المجلد مع `ANDROID_HOME`.
+- النسختان الجاهزتان للتوزيع: `D:\kk - Copy\التطبيق النهائي` (`Bordy-1.x-release.apk` و`BordyAdmin-1.x-release.apk`).
 
 ## 7. حالة الجودة (بعد التهيئة الحالية)
 

@@ -61,6 +61,30 @@ export async function sendTelegramDocument(
 }
 
 /**
+ * Owner-facing notifications can be muted from the admin panel. Bot commands and
+ * security alerts deliberately bypass this gate.
+ */
+export async function ownerNotificationsEnabled(db: D1Database): Promise<boolean> {
+  const value = await getSetting(db, 'bot_notifications_enabled');
+  return value !== '0' && value !== 'off';
+}
+
+export async function notifyOwner(env: Env, text: string, replyMarkup?: unknown): Promise<boolean> {
+  if (!await ownerNotificationsEnabled(env.DB)) return false;
+  return sendTelegram(env.TG_BOT_TOKEN, env.OWNER_CHAT_ID, text, replyMarkup);
+}
+
+export async function notifyOwnerDocument(
+  env: Env,
+  filename: string,
+  content: string,
+  caption?: string
+): Promise<boolean> {
+  if (!await ownerNotificationsEnabled(env.DB)) return false;
+  return sendTelegramDocument(env.TG_BOT_TOKEN, env.OWNER_CHAT_ID, filename, content, caption);
+}
+
+/**
  * Answer a callback query.
  */
 async function answerCallback(botToken: string, callbackId: string, text?: string): Promise<void> {
@@ -645,7 +669,7 @@ export async function generateDailyReport(env: Env): Promise<void> {
     + `📱 مشتركين فعالين: ${activeCount}\n`
     + `💵 إيرادات الشهر: ${monthlyRevenue.toLocaleString()} د.ع`;
 
-  await sendTelegram(env.TG_BOT_TOKEN, env.OWNER_CHAT_ID, msg);
+  await notifyOwner(env, msg);
 }
 
 /**
@@ -660,7 +684,7 @@ export async function exportData(env: Env): Promise<void> {
   }
 
   const date = formatBaghdadTime(Date.now()).split(' ')[0];
-  await sendTelegramDocument(env.TG_BOT_TOKEN, env.OWNER_CHAT_ID, `devices_${date}.csv`, csv, '📋 تصدير الأجهزة');
+  await notifyOwnerDocument(env, `devices_${date}.csv`, csv, '📋 تصدير الأجهزة');
 
   // Export orders
   const orders = await env.DB.prepare('SELECT * FROM orders ORDER BY created_at DESC LIMIT 500').all();
@@ -669,5 +693,5 @@ export async function exportData(env: Env): Promise<void> {
     orderCsv += `${o.id},${o.device_id},${o.plan_id},${o.final_price},${o.status},"${o.code || ''}","${o.method || ''}",${o.created_at}\n`;
   }
 
-  await sendTelegramDocument(env.TG_BOT_TOKEN, env.OWNER_CHAT_ID, `orders_${date}.csv`, orderCsv, '📋 تصدير الطلبات');
+  await notifyOwnerDocument(env, `orders_${date}.csv`, orderCsv, '📋 تصدير الطلبات');
 }

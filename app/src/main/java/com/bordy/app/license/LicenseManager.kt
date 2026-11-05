@@ -55,7 +55,19 @@ object LicenseManager {
 
     private val syncMutex = Mutex()
     private var syncJob: Job? = null
+    private var tickJob: Job? = null
     private var lastAttemptAt = 0L
+
+    /**
+     * Last verified payload kept in memory so the countdown can move without a network call
+     * and without decrypting the licence file on every tick.
+     */
+    @Volatile
+    private var currentPayload: TokenPayload? = null
+
+    private val DAY_MS = 86_400_000L
+    private val TICK_MS = 20_000L
+    private val LIFETIME_DAYS = 9999
 
     /** Completed once the stored licence has been read and the local state resolved. */
     private val startupDone = CompletableDeferred<Unit>()
@@ -85,8 +97,8 @@ object LicenseManager {
 
                 // 2. Stored token → verify and derive the state from disk only (no network here:
                 //    the process may have been started by the background worker).
-                if (stored.token == "DEV_TEST_TOKEN") {
-                    _state.value = LicenseState.Active(daysLeft = 9999, showReminder = false)
+                if (stored.token == "DEV_TEST_TOKEN" && BuildConfig.DEBUG) {
+                    _state.value = LicenseState.Active(daysLeft = LIFETIME_DAYS, showReminder = false, lifetime = true)
                     return@launch
                 }
 
@@ -115,7 +127,7 @@ object LicenseManager {
                 }
 
                 _lastSyncAt.value = LicenseStore.getLastSyncAt(context)
-                _state.value = deriveState(context, payload)
+                applyPayload(context, payload)
 
                 // Keep the silent watcher alive for this install (no-op once armed).
                 LicenseSyncScheduler.ensurePeriodic(context)
@@ -138,7 +150,7 @@ object LicenseManager {
             }
             val payload = LicenseToken.verify(stored.token) ?: return@launch
             if (payload.did != DeviceId.get(appContext)) return@launch
-            _state.value = deriveState(appContext, payload)
+            applyPayload(appContext, payload)
         }
     }
 
@@ -239,8 +251,9 @@ object LicenseManager {
 
     /** Start the polling loop; the cadence comes from the admin panel (clamped on both ends). */
     fun startSync(context: Context) {
-        if (syncJob?.isActive == true) return
         val appContext = context.applicationContext
+        ensureTicker(appContext)
+        if (syncJob?.isActive == true) return
         syncJob = scope.launch {
             while (isActive) {
                 performSync(appContext, force = true)
@@ -257,6 +270,30 @@ object LicenseManager {
     fun stopSync() {
         syncJob?.cancel()
         syncJob = null
+        tickJob?.cancel()
+        tickJob = null
+    }
+
+    /**
+     * Re-derives the state from the verified payload every few seconds. This is what makes the
+     * countdown actually move between syncs and what enforces expiry while offline.
+     */
+    private fun ensureTicker(context: Context) {
+        if (tickJob?.isActive == true) return
+        tickJob = scope.launch {
+            while (isActive) {
+                delay(TICK_MS)
+                val payload = currentPayload ?: continue
+                val current = _state.value
+                // Never tick over a verdict the server owns (block, TOS, update, tamper).
+                if (current !is LicenseState.Active &&
+                    current !is LicenseState.Trial &&
+                    current !is LicenseState.Grace &&
+                    current !is LicenseState.Expired
+                ) continue
+                _state.value = deriveState(context, payload)
+            }
+        }
     }
 
     private suspend fun performSync(context: Context, force: Boolean, quick: Boolean = false): Boolean {
@@ -315,6 +352,15 @@ object LicenseManager {
                 if (LicenseStore.getForegroundSync(context) != cfg.foregroundSyncSeconds) {
                     LicenseStore.saveForegroundSync(context, cfg.foregroundSyncSeconds)
                 }
+                // The owner may change the reminder unit/value at any time; cache it locally.
+                val notice = ExpiryNoticeConfig(
+                    enabled = cfg.expiryNotice.enabled,
+                    unit = NoticeUnit.fromKey(cfg.expiryNotice.unit),
+                    value = cfg.expiryNotice.value
+                )
+                if (LicenseStore.getExpiryNotice(context) != notice) {
+                    LicenseStore.saveExpiryNotice(context, notice)
+                }
             }
 
             // Drop a pending order the server already settled while the app was closed.
@@ -339,7 +385,7 @@ object LicenseManager {
             } else null
             val payload = LicenseToken.verify(effectiveToken ?: stored.token)
             if (payload != null && payload.did == did) {
-                _state.value = deriveState(context, payload)
+                applyPayload(context, payload)
             }
             return true
         } finally {
@@ -358,8 +404,9 @@ object LicenseManager {
         scope.launch { activateOnline(context, ownerCode) }
     }
 
-    /** تفعيل وضع المطور للاختبار المحلي دون الحاجة لاتصال أو سيرفر */
-    fun enableDevMode(context: Context, state: LicenseState = LicenseState.Active(daysLeft = 9999, showReminder = false)) {
+    /** تفعيل وضع المطور للاختبار المحلي دون الحاجة لاتصال أو سيرفر — نسخ التطوير فقط */
+    fun enableDevMode(context: Context, state: LicenseState = LicenseState.Active(daysLeft = 9999, showReminder = false, lifetime = true)) {
+        if (!BuildConfig.DEBUG) return
         val existing = LicenseStore.load(context)
         LicenseStore.save(
             context,
@@ -386,7 +433,11 @@ object LicenseManager {
 
     private suspend fun activateOnce(context: Context, ownerCode: String?) {
         if (BuildConfig.API_BASE_URL.contains("ACCOUNT")) {
-            enableDevMode(context, LicenseState.Trial(daysLeft = 7, showBanner = false))
+            if (BuildConfig.DEBUG) {
+                enableDevMode(context, LicenseState.Trial(daysLeft = 7, showBanner = false))
+            } else {
+                _state.value = LicenseState.NoLicense
+            }
             return
         }
 
@@ -440,7 +491,7 @@ object LicenseManager {
         )
         LicenseStore.clearBlocked(context)
 
-        _state.value = deriveState(context, payload)
+        applyPayload(context, payload)
         val activatedAt = System.currentTimeMillis()
         _lastSyncAt.value = activatedAt
         LicenseStore.saveLastSyncAt(context, activatedAt)
@@ -472,15 +523,40 @@ object LicenseManager {
         val syncedAt = System.currentTimeMillis()
         _lastSyncAt.value = syncedAt
         LicenseStore.saveLastSyncAt(context, syncedAt)
+        applyPayload(context, payload)
+    }
+
+    private fun applyPayload(context: Context, payload: TokenPayload) {
+        currentPayload = payload
         _state.value = deriveState(context, payload)
+    }
+
+    private fun ceilDays(ms: Long): Int =
+        ((ms + DAY_MS - 1) / DAY_MS).toInt().coerceAtLeast(1)
+
+    /** Numeric dotted comparison — "1.0" and "1" are equal, "1.0" is older than "1.1". */
+    private fun isVersionOlder(current: String, minimum: String): Boolean {
+        val a = current.trim().split('.')
+        val b = minimum.trim().split('.')
+        for (i in 0 until maxOf(a.size, b.size)) {
+            val x = a.getOrNull(i)?.toIntOrNull() ?: 0
+            val y = b.getOrNull(i)?.toIntOrNull() ?: 0
+            if (x != y) return x < y
+        }
+        return false
     }
 
     private fun deriveState(context: Context, payload: TokenPayload): LicenseState {
         val now = System.currentTimeMillis()
 
         // 1. Force update check
-        if (payload.minv > BuildConfig.VERSION_CODE) {
-            return LicenseState.NeedUpdate(payload.minv)
+        val requiredName = payload.minvName
+        if (!requiredName.isNullOrBlank()) {
+            if (isVersionOlder(BuildConfig.VERSION_NAME, requiredName)) {
+                return LicenseState.NeedUpdate(requiredName)
+            }
+        } else if (payload.minv > BuildConfig.VERSION_CODE) {
+            return LicenseState.NeedUpdate(payload.minv.toString())
         }
 
         // 2. Clock tamper check
@@ -488,12 +564,17 @@ object LicenseManager {
             return LicenseState.ClockTamper
         }
 
-        // 3. Owner — unlimited and never bound by the token TTL
+        // 3. Lifetime (owner) — unlimited, and never shows an expiry reminder.
         if (payload.st == "owner") {
-            return LicenseState.Active(daysLeft = 9999, showReminder = false)
+            return LicenseState.Active(
+                daysLeft = LIFETIME_DAYS,
+                showReminder = false,
+                msLeft = Long.MAX_VALUE,
+                lifetime = true
+            )
         }
 
-        // 4. Token expiry (includes grace)
+        // 4. Token expiry (includes the grace window issued by the server)
         if (now > payload.exp) {
             return LicenseState.Expired
         }
@@ -503,8 +584,11 @@ object LicenseManager {
             val msLeft = payload.tre - now
             // A trial can be shorter than a day, so the remaining milliseconds decide — not whole days.
             if (msLeft <= 0) return LicenseState.Expired
-            val daysLeft = (msLeft / 86_400_000L).toInt()
-            return LicenseState.Trial(daysLeft, showBanner = msLeft <= 3 * 86_400_000L, msLeft = msLeft)
+            return LicenseState.Trial(
+                daysLeft = ceilDays(msLeft),
+                showBanner = msLeft <= 3 * DAY_MS,
+                msLeft = msLeft
+            )
         }
 
         // 6. Paid
@@ -515,14 +599,18 @@ object LicenseManager {
                     // Grace lasts until the token itself expires (grace_days comes from the server).
                     val graceMs = payload.exp - now
                     if (graceMs > 0) {
-                        val graceLeft = ((graceMs + 86_399_999) / 86_400_000L).toInt().coerceAtLeast(1)
-                        LicenseState.Grace(graceLeft, graceMs)
+                        LicenseState.Grace(ceilDays(graceMs), graceMs)
                     } else LicenseState.Expired
                 }
                 else -> {
-                    val daysLeft = (msLeft / 86_400_000L).toInt()
-                    if (daysLeft <= 5) LicenseState.Active(daysLeft, showReminder = true)
-                    else LicenseState.Active(daysLeft, showReminder = false)
+                    // The owner sets how far before expiry the reminder starts (days/hours/minutes).
+                    val notice = LicenseStore.getExpiryNotice(context)
+                    LicenseState.Active(
+                        daysLeft = ceilDays(msLeft),
+                        showReminder = notice.enabled && msLeft <= notice.thresholdMs,
+                        msLeft = msLeft,
+                        lifetime = false
+                    )
                 }
             }
         }
@@ -544,7 +632,7 @@ object LicenseManager {
                 return@launch
             }
             LicenseStore.save(context, newToken, stored.tosAccepted, stored.tosVersion)
-            _state.value = deriveState(context, payload)
+            applyPayload(context, payload)
             // Pull the next config right away (the campaign may have just been consumed).
             performSync(context, force = true)
         }

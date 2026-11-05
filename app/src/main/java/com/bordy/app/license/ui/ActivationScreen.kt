@@ -102,7 +102,7 @@ fun ActivationScreen() {
             Spacer(Modifier.height(4.dp))
 
             Text(
-                text = "نظامك المرتب لحساب وتجهيز لوحات السيطرة والبوردات",
+                text = "نظامك المنظّم لحساب وتجهيز لوحات السيطرة والمشاريع",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onBackground,
                 textAlign = TextAlign.Center
@@ -140,9 +140,9 @@ fun ActivationScreen() {
                     Spacer(Modifier.height(12.dp))
 
                     val features = listOf(
-                        "7 أيام تجربة كاملة الميزات بدون أي قيود",
-                        "شغلك وحساباتك محفوظة بجهازك ومأمنة",
-                        "بلّش على طول بدون أي التزام ولا دفع"
+                        "7 أيام تجربة بكامل الميزات دون أي قيود",
+                        "عملك وحساباتك محفوظة على جهازك ومؤمّنة",
+                        "ابدأ مباشرة دون أي التزام أو دفع"
                     )
 
                     features.forEach { feat ->
@@ -175,7 +175,7 @@ fun ActivationScreen() {
                     promoCode = it
                     promoError = null
                 },
-                placeholder = { Text("عندك كود خصم أو تفعيل؟ (اختياري)", fontSize = 13.sp) },
+                placeholder = { Text("هل لديك كود خصم أو تفعيل؟ (اختياري)", fontSize = 13.sp) },
                 label = { Text("كود الخصم / التفعيل", fontSize = 12.sp) },
                 modifier = Modifier.fillMaxWidth(),
                 shape = CircleShape,
@@ -209,18 +209,18 @@ fun ActivationScreen() {
                                 // The server silently ignores unusable codes, so validate first and speak up.
                                 val check = LicenseApi.checkCode(DeviceId.get(context), code)
                                 if (check == null) {
-                                    promoError = "ماكو اتصال بالسيرفر، شيك على النت"
+                                    promoError = "لا يوجد اتصال بالخادم، تحقق من الإنترنت"
                                     isLoading = false
                                     return@launch
                                 }
                                 if (!check.optBoolean("ok", false)) {
-                                    promoError = errorMessageOf(check) ?: "الكود مو صحيح أو خلصت مدته"
+                                    promoError = errorMessageOf(check) ?: "الكود غير صحيح أو انتهت صلاحيته"
                                     isLoading = false
                                     return@launch
                                 }
                                 val kind = check.optString("kind")
                                 if (kind != "FREE_DAYS" && kind != "OWNER") {
-                                    promoError = "هذا الكود تستخدمه بشاشة الاشتراك ويا الدفع، مو للتفعيل المباشر"
+                                    promoError = "هذا الكود يُستخدم في شاشة الاشتراك والدفع، وليس للتفعيل المباشر"
                                     isLoading = false
                                     return@launch
                                 }
@@ -242,7 +242,7 @@ fun ActivationScreen() {
                         CircularProgressIndicator(modifier = Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
                     } else {
                         Text(
-                            text = if (promoCode.isBlank()) "بلّش التجربة هسّه (7 أيام مجاناً)" else "فعّل الحساب",
+                            text = if (promoCode.isBlank()) "ابدأ التجربة الآن (7 أيام مجاناً)" else "فعّل الحساب",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -256,7 +256,7 @@ fun ActivationScreen() {
                     border = BorderStroke(1.dp, BrandYellow)
                 ) {
                     Text(
-                        text = "⚠️ محتاجين إنترنت بس أول مرة حتى تتفعل عندك التجربة المجانية (7 أيام).",
+                        text = "⚠️ تحتاج إلى اتصال بالإنترنت في المرة الأولى فقط لتفعيل التجربة المجانية (7 أيام).",
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                         color = OnBrandYellow,
@@ -270,7 +270,7 @@ fun ActivationScreen() {
                     onClick = {
                         isOnline = LicenseApi.isOnline(context)
                         if (!isOnline) {
-                            Toast.makeText(context, "ماكو إنترنت حالياً", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "لا يوجد اتصال بالإنترنت حالياً", Toast.LENGTH_SHORT).show()
                         }
                     },
                     modifier = Modifier
@@ -280,7 +280,7 @@ fun ActivationScreen() {
                     shape = CircleShape,
                     colors = ButtonDefaults.buttonColors(containerColor = SellGreen)
                 ) {
-                    Text("شيك على النت من جديد", fontWeight = FontWeight.Bold)
+                    Text("تحقق من الاتصال مجدداً", fontWeight = FontWeight.Bold)
                 }
             }
 
@@ -292,7 +292,7 @@ fun ActivationScreen() {
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = if (showAdvanced) "سد الخيارات الإضافية" else "خيارات إضافية / تفعيل يدوي بدون إنترنت",
+                        text = if (showAdvanced) "إخفاء الخيارات الإضافية" else "خيارات إضافية / تفعيل يدوي بدون إنترنت",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -320,7 +320,7 @@ fun ActivationScreen() {
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "آيدي الجهاز (للدعم الفني والتفعيل اليدوي)",
+                            text = "معرّف الجهاز (للدعم الفني والتفعيل اليدوي)",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -342,24 +342,24 @@ fun ActivationScreen() {
                                 onClick = {
                                     val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                     cm.setPrimaryClip(ClipData.newPlainText("Device ID", rawId))
-                                    Toast.makeText(context, "نسخنا آيدي الجهاز، تدلل ✅", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "تم نسخ معرّف الجهاز ✅", Toast.LENGTH_SHORT).show()
                                 },
                                 shape = CircleShape,
                                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                             ) {
                                 Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp))
                                 Spacer(Modifier.width(4.dp))
-                                Text("نسخ الآيدي", fontSize = 11.sp)
+                                Text("نسخ المعرّف", fontSize = 11.sp)
                             }
 
                             OutlinedButton(
                                 onClick = {
                                     val sendIntent = Intent().apply {
                                         action = Intent.ACTION_SEND
-                                        putExtra(Intent.EXTRA_TEXT, "آيدي جهازي لتطبيق بوردي:\n$rawId")
+                                        putExtra(Intent.EXTRA_TEXT, "معرّف جهازي لتطبيق بوردي:\n$rawId")
                                         type = "text/plain"
                                     }
-                                    context.startActivity(Intent.createChooser(sendIntent, "مشاركة آيدي الجهاز"))
+                                    context.startActivity(Intent.createChooser(sendIntent, "مشاركة معرّف الجهاز"))
                                 },
                                 shape = CircleShape,
                                 contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
@@ -375,7 +375,7 @@ fun ActivationScreen() {
                         Spacer(Modifier.height(14.dp))
 
                         Text(
-                            text = "الصق كود الترخيص اليدوي:",
+                            text = "ألصق كود الترخيص اليدوي:",
                             style = MaterialTheme.typography.labelSmall,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -387,7 +387,7 @@ fun ActivationScreen() {
                                 manualToken = it.trim()
                                 manualError = null
                             },
-                            placeholder = { Text("الصق كود التفعيل اللي استلمته من عدنا...", fontSize = 11.sp) },
+                            placeholder = { Text("ألصق كود التفعيل الذي استلمته منّا...", fontSize = 11.sp) },
                             modifier = Modifier.fillMaxWidth(),
                             shape = CircleShape,
                             maxLines = 3,
@@ -408,17 +408,17 @@ fun ActivationScreen() {
                         Button(
                             onClick = {
                                 if (manualToken.isBlank()) {
-                                    manualError = "الصق الكود أولاً عيني"
+                                    manualError = "ألصق الكود أولاً"
                                     return@Button
                                 }
                                 val payload = LicenseToken.verify(manualToken)
                                 if (payload != null && payload.did == rawId) {
                                     LicenseManager.onSubscriptionApproved(context, manualToken)
-                                    Toast.makeText(context, "تفعل التطبيق بنجاح، عاشت ايدك! 🎉", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, "تم تفعيل التطبيق بنجاح، أحسنت! 🎉", Toast.LENGTH_LONG).show()
                                 } else if (payload != null && payload.did != rawId) {
-                                    manualError = "هذا الكود مخصص لجهاز ثاني مو جهازك"
+                                    manualError = "هذا الكود مخصص لجهاز آخر، وليس جهازك"
                                 } else {
-                                    manualError = "الكود مو مضبوط أو التوقيع مو مطابق"
+                                    manualError = "الكود غير صحيح أو التوقيع غير مطابق"
                                 }
                             },
                             modifier = Modifier

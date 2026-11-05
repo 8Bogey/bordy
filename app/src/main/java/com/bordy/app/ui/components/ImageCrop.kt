@@ -184,7 +184,7 @@ fun ImageCropDialog(
                 }
 
                 Text(
-                    "اسحب الصورة بإصبع واحد وقَرِّب بإصبعين لاختيار الجزء الذي تريده",
+                    "اسحب الصورة بإصبع واحد وقرّب بإصبعين لتحديد الجزء المطلوب",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )

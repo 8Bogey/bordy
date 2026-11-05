@@ -181,7 +181,7 @@ fun ActivityLogScreen(vm: MainViewModel, onBack: () -> Unit) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            SlimScreenHeader(title = "سجل الشغل والعمليات", onBack = onBack) {
+            SlimScreenHeader(title = "سجل العمل والعمليات", onBack = onBack) {
                 if (logs.isNotEmpty()) {
                     TintedCircleButton(
                         onClick = { showClearAll = true },
@@ -204,7 +204,7 @@ fun ActivityLogScreen(vm: MainViewModel, onBack: () -> Unit) {
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    placeholder = { Text("دوّر بالسجل على عملية أو مادة...", style = MaterialTheme.typography.bodyMedium) },
+                    placeholder = { Text("ابحث في السجل عن عملية أو مادة...", style = MaterialTheme.typography.bodyMedium) },
                     leadingIcon = {
                         Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                     },
@@ -262,11 +262,11 @@ fun ActivityLogScreen(vm: MainViewModel, onBack: () -> Unit) {
             when {
                 logs.isEmpty() -> EmptyState(
                     icon = Icons.Default.History,
-                    message = "سجل الشغل فاضي هسّه — كل حركة تسويها بالبوردات والمخزن راح تتسجل هنا"
+                    message = "سجل العمل فارغ الآن — كل حركة تقوم بها في المشاريع والمخزن ستُسجّل هنا"
                 )
                 filtered.isEmpty() -> EmptyState(
                     icon = Icons.Default.SearchOff,
-                    message = "ماكو عمليات تطابق اللي دوّرت عليه"
+                    message = "لا توجد عمليات تطابق بحثك"
                 )
                 else -> LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -345,7 +345,7 @@ fun ActivityLogScreen(vm: MainViewModel, onBack: () -> Unit) {
             onDismissRequest = { deletingEntry = null },
             shape = DialogShape,
             containerColor = MaterialTheme.colorScheme.surface,
-            title = { Text("احذف هالسطر من السجل", fontWeight = FontWeight.Bold, color = DangerRed) },
+            title = { Text("حذف هذا السطر من السجل", fontWeight = FontWeight.Bold, color = DangerRed) },
             text = { Text("سيُزال هذا السطر من السجل فقط. العمليات نفسها وبيانات التطبيق لا تتأثر.") },
             confirmButton = {
                 Button(
@@ -366,10 +366,10 @@ fun ActivityLogScreen(vm: MainViewModel, onBack: () -> Unit) {
             onDismissRequest = { showClearAll = false },
             shape = DialogShape,
             containerColor = MaterialTheme.colorScheme.surface,
-            title = { Text("مسح سجل الشغل كله", fontWeight = FontWeight.Bold, color = DangerRed) },
+            title = { Text("مسح سجل العمل كله", fontWeight = FontWeight.Bold, color = DangerRed) },
             text = {
                 val count = logs.size
-                Text("راح ينمسح كل السجل (${if (count == 1) "عملية واحدة" else "$count عملية"}). بورداتك والمخزن والمجهّزين ما يتأثرون أبد.")
+                Text("سيُمسح كل السجل (${if (count == 1) "عملية واحدة" else "$count عملية"}). مشاريعك والمخزن والموردون لا تتأثر أبداً.")
             },
             confirmButton = {
                 Button(

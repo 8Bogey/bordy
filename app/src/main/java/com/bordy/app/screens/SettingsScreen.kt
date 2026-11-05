@@ -38,6 +38,8 @@ import com.bordy.app.license.IntegrityChecks
 import com.bordy.app.license.LicenseApi
 import com.bordy.app.license.LicenseManager
 import com.bordy.app.license.LicenseState
+import com.bordy.app.license.LicenseStore
+import com.bordy.app.license.formatNoticeRemaining
 import com.bordy.app.license.formatRemaining
 import com.bordy.app.license.ui.PaywallScreen
 import androidx.compose.runtime.*
@@ -163,7 +165,7 @@ fun SettingsScreen(
     val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri: Uri? ->
         uri?.let {
             if (!IntegrityChecks.verifyAppState()) {
-                Toast.makeText(context, "اشتراكك مخلص — جدد حتى تكدر تصدر نسخة احتياطية", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, "انتهى اشتراكك — جدّد حتى تتمكن من تصدير نسخة احتياطية", Toast.LENGTH_LONG).show()
                 return@rememberLauncherForActivityResult
             }
             scope.launch(Dispatchers.IO) {
@@ -202,7 +204,7 @@ fun SettingsScreen(
                 }
                 withContext(Dispatchers.Main) {
                     if (imported) {
-                        Toast.makeText(context, "تم استرجاع النسخة بنجاح! ديعيد تشغيل التطبيق هسّه", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "تمت استعادة النسخة بنجاح! سيُعاد تشغيل التطبيق الآن", Toast.LENGTH_LONG).show()
                         val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
                         if (intent != null) {
                             intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -210,7 +212,7 @@ fun SettingsScreen(
                         }
                         android.os.Process.killProcess(android.os.Process.myPid())
                     } else {
-                        Toast.makeText(context, "ما كدرنا نسترجع النسخة، تأكد من الملف وحاول ثانية", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "تعذّرت استعادة النسخة، تحقق من الملف وحاول مرة أخرى", Toast.LENGTH_LONG).show()
                     }
                 }
             }
@@ -239,12 +241,22 @@ fun SettingsScreen(
                 title = "الاشتراك وحسابك"
             ) {
                 val statusText = when (val s = licenseState) {
-                    is LicenseState.Trial -> "فترة تجربة مجانية (باقيلك ${formatRemaining(s.msLeft)})"
-                    is LicenseState.Active -> if (s.daysLeft >= 9000) "اشتراك دائمي مدى الحياة 🍀" else "اشتراك فعّال (باقيلك ${s.daysLeft} يوم)"
-                    is LicenseState.Grace -> "فترة سماح إضافية (باقيلك ${formatRemaining(s.msLeft)})"
-                    is LicenseState.Expired -> "الاشتراك مخلص"
-                    is LicenseState.Blocked -> "الحساب موقف"
-                    else -> "ديشيك السيرفر..."
+                    is LicenseState.Trial -> "فترة تجربة مجانية (متبقٍ لديك ${formatRemaining(s.msLeft)})"
+                    is LicenseState.Active -> when {
+                        s.lifetime -> "اشتراك مدى الحياة 🍀"
+                        else -> "اشتراك فعّال (متبقٍ لديك ${formatRemaining(s.msLeft)})"
+                    }
+                    is LicenseState.Grace -> "فترة سماح إضافية (متبقٍ لديك ${formatRemaining(s.msLeft)})"
+                    is LicenseState.Expired -> "انتهى الاشتراك"
+                    is LicenseState.Blocked -> "الحساب موقوف"
+                    else -> "جارٍ التحقق من الخادم..."
+                }
+                val notice = LicenseStore.getExpiryNotice(context)
+                val noticeText = when {
+                    licenseState is LicenseState.Active && (licenseState as LicenseState.Active).lifetime ->
+                        "مدى الحياة — لا يظهر أي تنبيه بانتهاء الاشتراك"
+                    !notice.enabled -> "تنبيهات الانتهاء موقوفة من الإدارة"
+                    else -> "يظهر التنبيه عندما يتبقى ${formatNoticeRemaining(notice.thresholdMs, notice.unit)}"
                 }
 
                 Row(
@@ -255,6 +267,12 @@ fun SettingsScreen(
                     Column(Modifier.weight(1f)) {
                         Text("وضع الاشتراك", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                         Text(statusText, style = MaterialTheme.typography.bodySmall, color = SellGreen, fontWeight = FontWeight.SemiBold)
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            noticeText,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
                     }
                     Button(
                         onClick = { showPaywallDialog = true },
@@ -276,14 +294,14 @@ fun SettingsScreen(
                 Column {
                     Text(
                         if (syncState.loggedIn) "متصل باسم ${syncState.username}"
-                        else "بدون حساب — بياناتك محفوظة على التلفون فقط",
+                        else "بدون حساب — بياناتك محفوظة على الهاتف فقط",
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
                         when {
-                            !syncState.loggedIn -> "أنشئ حساباً حتى تُحفظ بورداتك في السحابة وتنقذها لو تغيّر تلفونك."
+                            !syncState.loggedIn -> "أنشئ حساباً حتى تُحفظ مشاريعك في السحابة وتستعيدها إذا تغيّر هاتفك."
                             syncState.busy -> "جارٍ النسخ السحابي…"
                             syncState.pendingChanges > 0 -> "بانتظار رفع ${syncState.pendingChanges} تغيير — يرفعها تلقائياً"
                             lastSync > 0 -> "آخر نسخ: ${com.bordy.app.utils.formatDateTimeUi(lastSync)}"
@@ -317,7 +335,7 @@ fun SettingsScreen(
             SettingsSection(
                 icon = Icons.Default.DarkMode,
                 iconTint = SellGreen,
-                title = "المظهر والثيم"
+                title = "المظهر والسمة"
             ) {
                 Row(
                     Modifier.fillMaxWidth(),
@@ -326,7 +344,7 @@ fun SettingsScreen(
                 ) {
                     Column {
                         Text("الوضع الليلي (الداكن)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                        Text("ألوان داكنة مريحة للعين بالشغل", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f))
+                        Text("ألوان داكنة مريحة للعين أثناء العمل", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f))
                     }
                     Switch(
                         checked = isDark,
@@ -340,7 +358,7 @@ fun SettingsScreen(
                 iconTint = SellGreen,
                 title = "تنبيهات المخزن والمواد"
             ) {
-                Text("يحدد ألوان دوائر المواد (أخضر وأصفر) حتى تعرف النواقص أول بأول.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f))
+                Text("يحدد ألوان دوائر المواد (أخضر وأصفر) حتى تعرف النواقص أولاً بأول.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(value = stockHigh, onValueChange = { stockHigh = it }, label = { Text("حد المتوفر (أخضر)") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp))
                     OutlinedTextField(value = stockMed, onValueChange = { stockMed = it }, label = { Text("حد النواقص (أصفر)") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(14.dp))
@@ -350,13 +368,13 @@ fun SettingsScreen(
             SettingsSection(
                 icon = Icons.Default.Engineering,
                 iconTint = BrandYellow,
-                title = "شغل اليد الافتراضي"
+                title = "أجور العمل اليدوي الافتراضية"
             ) {
-                Text("ينزل كأجور شغل يد أساسية عند فتح أي بورد جديد.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f))
+                Text("يُضاف كأجور عمل يدوي أساسية عند فتح أي مشروع جديد.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f))
                 OutlinedTextField(
                     value = defaultLaborCost,
                     onValueChange = { defaultLaborCost = it },
-                    label = { Text("أجور شغل اليد (دينار عراقي)") },
+                    label = { Text("أجور العمل اليدوي (دينار عراقي)") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp)
                 )
@@ -367,7 +385,7 @@ fun SettingsScreen(
                 iconTint = BrandYellow,
                 title = "معلومات ورشتك ومحلك"
             ) {
-                Text("تطلع برأس قائمة الـ PDF للزبون. إذا عفتها فارغة تطلع المعلومات الافتراضية.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f))
+                Text("تظهر في رأس قائمة الـ PDF للعميل. إذا تركتها فارغة تظهر المعلومات الافتراضية.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f))
                 OutlinedTextField(
                     value = businessName,
                     onValueChange = { businessName = it },
@@ -380,7 +398,7 @@ fun SettingsScreen(
                 OutlinedTextField(
                     value = businessTagline,
                     onValueChange = { businessTagline = it },
-                    label = { Text("وصف النشاط (مثلاً: بوردات تأسيس وسيطرة)") },
+                    label = { Text("وصف النشاط (مثلاً: مشاريع تأسيس وسيطرة)") },
                     placeholder = { Text(DefaultBusinessTagline) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
@@ -389,7 +407,7 @@ fun SettingsScreen(
                 OutlinedTextField(
                     value = businessPhone,
                     onValueChange = { businessPhone = it },
-                    label = { Text("رقم تليفونك للزبائن") },
+                    label = { Text("رقم هاتفك للعملاء") },
                     placeholder = { Text("07xx xxx xxxx") },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
@@ -401,26 +419,26 @@ fun SettingsScreen(
             SettingsSection(
                 icon = Icons.AutoMirrored.Filled.ReceiptLong,
                 iconTint = SellGreen,
-                title = "قائمة الحساب (PDF للزبون)"
+                title = "قائمة الحساب (PDF للعميل)"
             ) {
                 OutlinedTextField(
                     value = invoiceFooter,
                     onValueChange = { invoiceFooter = it },
                     label = { Text("ملاحظة بأسفل القائمة") },
-                    placeholder = { Text("مثال: شكراً لتعاملكم ويا ورشتنا — الضمان سنة كاملة") },
+                    placeholder = { Text("مثال: شكراً لتعاملكم مع ورشتنا — الضمان سنة كاملة") },
                     minLines = 2,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp)
                 )
                 InvoiceToggleRow(
-                    title = "عرض كلفة المواد بالقائمة",
-                    subtitle = "يطلع سطر كلفة المواد الحقيقية بالقائمة",
+                    title = "عرض تكلفة المواد في القائمة",
+                    subtitle = "يظهر سطر تكلفة المواد الحقيقية في القائمة",
                     checked = showPurchase,
                     onCheckedChange = { showPurchase = it }
                 )
                 InvoiceToggleRow(
-                    title = "عرض الربح بالقائمة",
-                    subtitle = "يطلع سطر صافي أرباحك بعد شغل اليد",
+                    title = "عرض الربح في القائمة",
+                    subtitle = "يظهر سطر صافي أرباحك بعد أجور العمل اليدوي",
                     checked = showProfit,
                     onCheckedChange = { showProfit = it }
                 )
@@ -456,7 +474,7 @@ fun SettingsScreen(
                         Spacer(Modifier.height(4.dp))
                         Text("القطعة · الكمية · سعر البيع · الإجمالي", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                         Text("الإجمالي / الأجور / المجموع النهائي", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
-                        if (previewSettings.showPurchaseInPdf) Text("كلفة المواد عليّ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                        if (previewSettings.showPurchaseInPdf) Text("تكلفة المواد عليّ", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                         if (previewSettings.showProfitInPdf) Text("الربح بعد الأجور", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                         if (previewSettings.invoiceFooter.isNotBlank()) {
                             Spacer(Modifier.height(4.dp))
@@ -471,10 +489,10 @@ fun SettingsScreen(
             SettingsSection(
                 icon = Icons.Default.Schedule,
                 iconTint = SellGreen,
-                title = "مواعيد تسليم البورد والتنبيهات"
+                title = "مواعيد تسليم المشروع والتنبيهات"
             ) {
                 Text(
-                    "ساعة التسليم المعتمدة عند تحديد تاريخ تسليم البورد للزبون.",
+                    "ساعة التسليم المعتمدة عند تحديد تاريخ تسليم المشروع للعميل.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
                 )
@@ -499,7 +517,7 @@ fun SettingsScreen(
                         Column(Modifier.weight(1f)) {
                             Text("ساعة التسليم اليومية", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                             Text(
-                                "تتثبت ع البوردات الجديدة واللي تتعدل",
+                                "تُثبّت على المشاريع الجديدة والمعدّلة",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                             )
@@ -520,7 +538,7 @@ fun SettingsScreen(
                     OutlinedTextField(
                         value = reminderDays,
                         onValueChange = { reminderDays = it.filter { c -> c.isDigit() }.take(2) },
-                        label = { Text("نبهني قبل التسليم بـ (أيام)") },
+                        label = { Text("نبّهني قبل التسليم بـ (أيام)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         modifier = Modifier.weight(1f),
@@ -529,7 +547,7 @@ fun SettingsScreen(
                     OutlinedTextField(
                         value = reminderHours,
                         onValueChange = { reminderHours = it.filter { c -> c.isDigit() }.take(2) },
-                        label = { Text("نبهني قبل التسليم بـ (ساعات)") },
+                        label = { Text("نبّهني قبل التسليم بـ (ساعات)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         singleLine = true,
                         modifier = Modifier.weight(1f),
@@ -537,7 +555,7 @@ fun SettingsScreen(
                     )
                 }
                 Text(
-                    "يوصلك إشعارين لكل بورد ديشتغل · حط 0 حتى تلغي التنبيه",
+                    "يصلك إشعاران لكل مشروع يعمل · ضع 0 لإلغاء التنبيه",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 )
@@ -584,9 +602,9 @@ fun SettingsScreen(
             SettingsSection(
                 icon = Icons.Default.Backup,
                 iconTint = SellGreen,
-                title = "النسخ الاحتياطي لشغلك"
+                title = "النسخ الاحتياطي لعملك"
             ) {
-                Text("احفظ نسخة احتياطية من كل بورداتك وموادك ع التلفون، أو استرجع نسخة سابقة.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f))
+                Text("احفظ نسخة احتياطية من كل مشاريعك وموادك على الهاتف، أو استعد نسخة سابقة.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f))
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     BrandButton(
                         text = "حفظ نسخة",
@@ -598,7 +616,7 @@ fun SettingsScreen(
                         modifier = Modifier.weight(1f),
                         shape = CircleShape,
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.6f))
-                    ) { Text("استرجاع نسخة", fontWeight = FontWeight.Bold) }
+                    ) { Text("استعادة نسخة", fontWeight = FontWeight.Bold) }
                 }
             }
 
@@ -612,7 +630,7 @@ fun SettingsScreen(
                         Icon(Icons.Default.Lock, null, tint = BrandYellow, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            "تقرير الأرباح مقفول ومخفي بالبصمة كدام الزبائن.",
+                            "تقرير الأرباح مقفل ومخفي بالبصمة أمام العملاء.",
                             style = MaterialTheme.typography.bodyMedium,
                             color = BrandYellow,
                             fontWeight = FontWeight.Bold
@@ -644,7 +662,7 @@ fun SettingsScreen(
                     contentColor = OnBrandYellow,
                     onClick = {
                         if (profitFrom == null || profitTo == null) { errorMsg = "حدد تاريخ البداية والنهاية أولاً" }
-                        else if (profitFrom!! > profitTo!!) { errorMsg = "تاريخ البداية لازم يكون قبل النهاية" }
+                        else if (profitFrom!! > profitTo!!) { errorMsg = "يجب أن يكون تاريخ البداية قبل النهاية" }
                         else {
                             errorMsg = ""
                             scope.launch {

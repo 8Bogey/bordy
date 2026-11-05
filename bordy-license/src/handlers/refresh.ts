@@ -49,7 +49,7 @@ export async function handleRefresh(request: Request, env: Env): Promise<Respons
   const now = Date.now();
   const paidTtlDays = parseInt(settings.paid_token_ttl_days || '7');
   const graceDays = parseInt(settings.grace_days || '2');
-  const minAppVersion = parseInt(settings.min_app_version || '1');
+  const minAppVersion = String(settings.min_app_version || '1').trim() || '1';
   const tosVersion = parseInt(settings.tos_version || '1');
 
   const tokenPayload = buildTokenPayload(device, now, body.nonce, paidTtlDays, graceDays, minAppVersion, tosVersion);

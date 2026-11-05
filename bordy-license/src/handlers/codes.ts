@@ -144,7 +144,7 @@ export async function handleRedeem(request: Request, env: Env): Promise<Response
       const settings = await getSettings(env.DB, ['paid_token_ttl_days', 'grace_days', 'min_app_version', 'tos_version']);
       const paidTtlDays = parseInt(settings.paid_token_ttl_days || '7');
       const graceDays = parseInt(settings.grace_days || '2');
-      const minAppVersion = parseInt(settings.min_app_version || '1');
+      const minAppVersion = String(settings.min_app_version || '1').trim() || '1';
       const tosVersion = parseInt(settings.tos_version || '1');
       const nonce = crypto.randomUUID().replace(/-/g, '').substring(0, 16);
       const tokenPayload = buildTokenPayload(updatedDevice, now, nonce, paidTtlDays, graceDays, minAppVersion, tosVersion);

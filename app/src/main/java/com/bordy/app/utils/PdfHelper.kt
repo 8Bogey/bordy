@@ -91,7 +91,7 @@ object PdfHelper {
         paint.textAlign = Paint.Align.RIGHT
         y += 40f
 
-        canvas.drawText("اسم البورد: ${project.customerName}", marginRight, y, boldPaint)
+        canvas.drawText("اسم المشروع: ${project.customerName}", marginRight, y, boldPaint)
         y += 20f
         // الصيغة نفسها المعزولة LTR في الواجهة حتى لا ينعكس ترتيب التاريخ داخل الفاتورة
         val dateStr = formatShortDateUi(project.createdAt)
@@ -152,7 +152,7 @@ object PdfHelper {
         if (settings.showPurchaseInPdf) {
             y += 20f
             ensureSpace(20f)
-            canvas.drawText("كلفة المواد عليّ: ${formatCurrency(totalMaterial)}", marginRight, y, boldPaint)
+            canvas.drawText("تكلفة المواد: ${formatCurrency(totalMaterial)}", marginRight, y, boldPaint)
         }
         if (settings.showProfitInPdf) {
             y += 20f

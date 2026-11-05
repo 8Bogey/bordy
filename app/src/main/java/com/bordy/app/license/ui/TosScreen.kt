@@ -37,14 +37,14 @@ fun TosScreen() {
     var isLoading by remember { mutableStateOf(false) }
 
     // Default fallback texts
-    val defaultTos = "شروط الاستخدام: باستخدامك لتطبيق بوردي توافق على الشروط التالية:\n\n" +
+    val defaultTos = "شروط الاستخدام: باستخدامك تطبيق بوردي فإنك توافق على الشروط التالية:\n\n" +
         "• الاشتراك لجهاز واحد فقط.\n" +
-        "• حساباتك وبياناتك محفوظة بجهازك ومأمنة بالكامل.\n" +
-        "• الاشتراك ما يرجع بعد التفعيل.\n" +
-        "• في حال مخالفة الشروط يحق للإدارة توقيف الترخيص."
-    val defaultPrivacy = "سياسة الخصوصية: خصوصيتك خط أحمر عندنا:\n\n" +
-        "• بياناتك وشغلك وبورداتك محفوظة بجهازك وما تروح لأي طرف ثالث.\n" +
-        "• نستخدم آيدي الجهاز فقط للتأكد من صلاحية الترخيص."
+        "• حساباتك وبياناتك محفوظة على جهازك ومؤمّنة بالكامل.\n" +
+        "• لا يُسترد الاشتراك بعد التفعيل.\n" +
+        "• في حال مخالفة الشروط يحق للإدارة إيقاف الترخيص."
+    val defaultPrivacy = "سياسة الخصوصية: خصوصيتك أولوية لدينا:\n\n" +
+        "• بياناتك وعملك ومشاريعك محفوظة على جهازك ولا تُشارَك مع أي طرف ثالث.\n" +
+        "• نستخدم معرّف الجهاز فقط للتأكد من صلاحية الترخيص."
 
     LaunchedEffect(Unit) {
         try {
@@ -70,7 +70,7 @@ fun TosScreen() {
             },
             confirmButton = {
                 TextButton(onClick = { showTosDialog = false }) {
-                    Text("سد النافذة")
+                    Text("إغلاق")
                 }
             }
         )
@@ -90,7 +90,7 @@ fun TosScreen() {
             },
             confirmButton = {
                 TextButton(onClick = { showPrivacyDialog = false }) {
-                    Text("سد النافذة")
+                    Text("إغلاق")
                 }
             }
         )
@@ -117,7 +117,7 @@ fun TosScreen() {
             Spacer(Modifier.height(16.dp))
 
             Text(
-                text = "يا هلا بيك",
+                text = "مرحباً بك",
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onBackground
             )
@@ -192,7 +192,7 @@ fun TosScreen() {
                     )
                 } else {
                     Text(
-                        text = "موافق وبلّش 🍀",
+                        text = "أوافق وابدأ 🍀",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
                     )

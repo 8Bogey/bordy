@@ -386,7 +386,7 @@ fun CalculatorScreen() {
 
                     if (historyList.isEmpty()) {
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            Text("ما عندك حسابات سابقة", color = MaterialTheme.colorScheme.onSurface.copy(alpha=0.6f))
+                            Text("ليس لديك حسابات سابقة", color = MaterialTheme.colorScheme.onSurface.copy(alpha=0.6f))
                         }
                     } else {
                         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -383,7 +383,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                                     color = BrandYellow
                                                 ) {
                                                     Text(
-                                                        text = if (plan.id == "yearly") "أحسن توفير ⭐" else "الأكثر طلباً 🔥",
+                                                        text = if (plan.id == "yearly") "أفضل توفير ⭐" else "الأكثر طلباً 🔥",
                                                         fontSize = 10.sp,
                                                         fontWeight = FontWeight.Bold,
                                                         color = OnBrandYellow,
@@ -436,7 +436,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                 }
                                 Spacer(Modifier.width(10.dp))
                                 Text(
-                                    text = "عندك كود خصم؟",
+                                    text = "هل لديك كود خصم؟",
                                     style = MaterialTheme.typography.titleSmall,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -454,7 +454,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                         promoCode = it.trim()
                                         promoError = null
                                     },
-                                    placeholder = { Text("اكتب الكود هنا", fontSize = 13.sp) },
+                                    placeholder = { Text("أدخل الكود هنا", fontSize = 13.sp) },
                                     modifier = Modifier.weight(1f),
                                     shape = CircleShape,
                                     singleLine = true,
@@ -489,11 +489,11 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                                         delay(3_500)
                                                         isLoading = false
                                                         val st = LicenseManager.state.value
-                                                        if (st is LicenseState.Active && st.daysLeft >= 9000) {
+                                                        if (st is LicenseState.Active && st.lifetime) {
                                                             activationSucceeded = true
-                                                            Toast.makeText(context, "تم تفعيل اشتراك مدى الحياة، عاشت ايدك! 🍀", Toast.LENGTH_LONG).show()
+                                                            Toast.makeText(context, "تم تفعيل اشتراك مدى الحياة، أحسنت! 🍀", Toast.LENGTH_LONG).show()
                                                         } else {
-                                                            promoError = "تعذر التفعيل، تأكد من اتصال النت وجرب ثاني"
+                                                            promoError = "تعذر التفعيل، تأكد من اتصال الإنترنت وحاول مرة أخرى"
                                                         }
                                                         return@launch
                                                     }
@@ -505,12 +505,12 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                                     )
                                                     discountIsAuto = false
                                                     promoError = null
-                                                    Toast.makeText(context, "انطبق الكود وتوفرت فلوس! 🎁", Toast.LENGTH_SHORT).show()
+                                                    Toast.makeText(context, "تم تطبيق الكود وتوفير المبلغ! 🎁", Toast.LENGTH_SHORT).show()
                                                 } else {
                                                     appliedDiscount = autoDiscount?.takeIf { it.appliesTo(selectedPlanId) }
                                                     discountIsAuto = appliedDiscount != null
-                                                    promoError = if (check == null) "ماكو اتصال، جرب مرة ثانية"
-                                                    else errorMessageOf(check) ?: "الكود مو صحيح أو خلص وقته"
+                                                    promoError = if (check == null) "لا يوجد اتصال، حاول مرة أخرى"
+                                                    else errorMessageOf(check) ?: "الكود غير صحيح أو انتهت مدته"
                                                 }
                                             }
                                         }
@@ -580,7 +580,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                                 },
                                                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                                             ) {
-                                                Text("شيل الكود", fontSize = 12.sp, color = DangerRed, fontWeight = FontWeight.Bold)
+                                                Text("إزالة الكود", fontSize = 12.sp, color = DangerRed, fontWeight = FontWeight.Bold)
                                             }
                                         }
                                     }
@@ -605,9 +605,9 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                 onClick = {
                                     if (paymentMethods.isEmpty()) {
                                         checkoutError = if (plansResponse == null)
-                                            "جارٍ تحميل طرق الدفع، انتظر شوية"
+                                            "جارٍ تحميل طرق الدفع، انتظر قليلاً"
                                         else
-                                            "طرق الدفع مو مهيأة هسّه، كلّمنا وننظمها وياك."
+                                            "طرق الدفع غير مهيأة الآن، تواصل معنا وسنساعدك في حلها."
                                     } else {
                                         checkoutError = null
                                         isLoading = true
@@ -624,7 +624,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
 
                                             when {
                                                 res == null -> {
-                                                    checkoutError = "ماكو اتصال بالإنترنت، شيك على النت وجرب ثاني"
+                                                    checkoutError = "لا يوجد اتصال بالإنترنت، تحقق من الاتصال وحاول مرة أخرى"
                                                 }
                                                 !res.optBoolean("ok", false) -> {
                                                     if (errorCodeOf(res) == "ACTIVE_ORDER") {
@@ -632,7 +632,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                                         val active = res.optJSONObject("order")
                                                         val activeId = active?.optString("id").orEmpty()
                                                         if (activeId.isBlank()) {
-                                                            checkoutError = errorMessageOf(res) ?: "عندك طلب لسه شغّال"
+                                                            checkoutError = errorMessageOf(res) ?: "لديك طلب قائم بالفعل"
                                                             return@launch
                                                         }
                                                         currentOrderId = activeId
@@ -641,7 +641,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                                         if (details == null || !details.ok) {
                                                             if (details?.errorCode == "ORDER_NOT_FOUND" || details?.errorCode == "FORBIDDEN") {
                                                                 LicenseStore.clearPendingOrder(context)
-                                                                checkoutError = "ماكو طريقة أكمل الطلب السابق، جرب مرة ثانية"
+                                                                checkoutError = "تعذر إكمال الطلب السابق، حاول مرة أخرى"
                                                             } else {
                                                                 LicenseStore.savePendingOrder(context, activeId, selectedPlanId, currentPlan.title, finalAmount)
                                                                 step = PaywallStep.WaitingApproval
@@ -678,13 +678,13 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                                             showPaymentSheet = true
                                                         }
                                                     } else {
-                                                        checkoutError = errorMessageOf(res) ?: "ما قدرنا ننشئ الطلب، جرب ثاني"
+                                                        checkoutError = errorMessageOf(res) ?: "تعذر إنشاء الطلب، حاول مرة أخرى"
                                                     }
                                                 }
                                                 else -> {
                                                     val orderObj = res.optJSONObject("order")
                                                     if (orderObj == null) {
-                                                        checkoutError = "ما قدرنا ننشئ الطلب، جرب ثاني"
+                                                        checkoutError = "تعذر إنشاء الطلب، حاول مرة أخرى"
                                                     } else {
                                                         val orderId = orderObj.optString("id")
                                                         val finalPrice = orderObj.optInt("final_price", calculatedPrice)
@@ -705,7 +705,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                                                 handleApproved(token)
                                                             }
                                                             paymentMethods.isEmpty() -> {
-                                                                checkoutError = "طرق الدفع مو مهيأة هسّه، كلّمنا وننظمها وياك."
+                                                                checkoutError = "طرق الدفع غير مهيأة الآن، تواصل معنا وسنساعدك في حلها."
                                                                 LicenseApi.cancelOrder(did, orderId)
                                                             }
                                                             else -> {
@@ -842,16 +842,16 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                             Spacer(Modifier.height(16.dp))
 
                             Text(
-                                text = if (waitingSubmitted) "طلبك ديراجعونه هسّه ⏳" else "كمّل التحويل حتى يتفعل حسابك 💳",
+                                text = if (waitingSubmitted) "طلبك قيد المراجعة الآن ⏳" else "أكمل التحويل حتى يتم تفعيل حسابك 💳",
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(Modifier.height(8.dp))
                             Text(
                                 text = if (waitingSubmitted) {
-                                    "تم تسجيل طلبك ($currentOrderId) واستلام إشعار الحوالة.\nبمجرد مراجعة الحوالة وتأكيدها يتفعل الاشتراك بحسابك فوراً."
+                                    "تم تسجيل طلبك ($currentOrderId) واستلام إشعار الحوالة.\nبمجرد مراجعة الحوالة وتأكيدها يتم تفعيل الاشتراك في حسابك فوراً."
                                 } else {
-                                    "تم تسجيل طلبك ($currentOrderId).\nحوّل المبلغ، دز صورة الوصل ع الواتساب أو ارفقها هنا، واضغط «شيك التفعيل» حتى يشتغل حسابك."
+                                    "تم تسجيل طلبك ($currentOrderId).\nحوّل المبلغ، وأرسل صورة الوصل على واتساب أو أرفقها هنا، ثم اضغط «تحقق من التفعيل» حتى يعمل حسابك."
                                 },
                                 style = MaterialTheme.typography.bodyMedium,
                                 textAlign = TextAlign.Center,
@@ -942,7 +942,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                         val s = try { LicenseApi.checkOrder(did, currentOrderId) } catch (_: Exception) { null }
                                         isLoading = false
                                         when {
-                                            s == null -> Toast.makeText(context, "تعذر الاتصال بالسيرفر، تحقق من الإنترنت", Toast.LENGTH_SHORT).show()
+                                            s == null -> Toast.makeText(context, "تعذر الاتصال بالخادم، تحقق من الإنترنت", Toast.LENGTH_SHORT).show()
                                             s.status == "APPROVED" -> {
                                                 handleApproved(s.token)
                                             }
@@ -964,9 +964,9 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                             s.status == "SUBMITTED" -> {
                                                 waitingSubmitted = true
                                                 LicenseStore.updatePendingProof(context, s.method, s.txnRef, true)
-                                                Toast.makeText(context, "استلمنا الوصل، طلبك قيد المراجعة هسّه", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, "استلمنا الوصل، وطلبك قيد المراجعة الآن", Toast.LENGTH_SHORT).show()
                                             }
-                                            else -> Toast.makeText(context, "الطلب ديراجعونه، ويتفعل الاشتراك فور التأكيد", Toast.LENGTH_SHORT).show()
+                                            else -> Toast.makeText(context, "الطلب قيد المراجعة، ويتم تفعيل الاشتراك فور التأكيد", Toast.LENGTH_SHORT).show()
                                         }
                                     }
                                 },
@@ -983,7 +983,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                     Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                                     Spacer(Modifier.width(8.dp))
                                     Text(
-                                        if (waitingSubmitted) "شيك التفعيل هسّه" else "إرسال الوصل وتشيك التفعيل",
+                                        if (waitingSubmitted) "تحقق من التفعيل الآن" else "إرسال الوصل والتحقق من التفعيل",
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
@@ -1010,7 +1010,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                     .fillMaxWidth()
                                     .height(46.dp)
                             ) {
-                                Text("إلغاء الطلب والرجوع للباقات", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("إلغاء الطلب والعودة إلى الباقات", color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -1185,9 +1185,9 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                 color = Color.White
                             )
                         }
-                        Text("1️⃣ اختار المحفظة وانسخ الرقم بضغطة زر.", style = MaterialTheme.typography.bodySmall, fontSize = 11.sp, color = Color.White)
-                        Text("2️⃣ حوّل المبلغ من تطبيق محفظتك واخذ سكرين شوت (صورة شاشة).", style = MaterialTheme.typography.bodySmall, fontSize = 11.sp, color = Color.White)
-                        Text("3️⃣ ارفق صورة الوصل هنا أو دزها ع الواتساب، ويتفعل اشتراكك فوراً!", style = MaterialTheme.typography.bodySmall, fontSize = 11.sp, color = Color.White)
+                        Text("1️⃣ اختر المحفظة وانسخ الرقم بضغطة زر.", style = MaterialTheme.typography.bodySmall, fontSize = 11.sp, color = Color.White)
+                        Text("2️⃣ حوّل المبلغ من تطبيق محفظتك ثم خذ لقطة شاشة.", style = MaterialTheme.typography.bodySmall, fontSize = 11.sp, color = Color.White)
+                        Text("3️⃣ أرفق صورة الوصل هنا أو أرسلها على واتساب، ويتم تفعيل اشتراكك فوراً!", style = MaterialTheme.typography.bodySmall, fontSize = 11.sp, color = Color.White)
                     }
                 }
 
@@ -1303,7 +1303,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                     }
                                     Spacer(Modifier.width(8.dp))
                                     Text(
-                                        text = "حوّل المبلغ على هالرقم:",
+                                        text = "حوّل المبلغ إلى هذا الرقم:",
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = BrandYellow
@@ -1351,7 +1351,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                     onClick = {
                                         val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                         cm.setPrimaryClip(ClipData.newPlainText(selectedMethod.name, selectedMethod.account))
-                                        Toast.makeText(context, "نسخنا رقم ${selectedMethod.name}، تدلل! حوّل من محفظتك ✅", Toast.LENGTH_SHORT).show()
+                                        Toast.makeText(context, "تم نسخ رقم ${selectedMethod.name}. حوّل من محفظتك ✅", Toast.LENGTH_SHORT).show()
                                     },
                                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                                     shape = CircleShape,
@@ -1499,14 +1499,14 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                     Button(
                         onClick = {
                             val message = buildString {
-                                append("هلو، حوّلت مبلغ اشتراك بوردي 🍀\n")
+                                append("مرحباً، حوّلت مبلغ اشتراك بوردي 🍀\n")
                                 append("الباقة: ${orderPlanTitle.ifBlank { currentPlan.title }}\n")
                                 append("المبلغ: ${"%,d".format(finalAmount)} د.ع\n")
                                 append("طريقة التحويل: ${selectedMethod.name}\n")
                                 append("كود الطلب: $currentOrderId\n")
                                 append("كود الجهاز: $did\n")
                                 if (orderTxnRef.isNotBlank()) append("رقم العملية: ${orderTxnRef.trim()}\n")
-                                append("\nوهاي صورة الوصل 📸")
+                                append("\nوهذه صورة الوصل 📸")
                             }
 
                             // A placeholder support number must not be dialed; fall back to WhatsApp's share sheet.
@@ -1517,7 +1517,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fullUrl))
                                 context.startActivity(intent)
                             } catch (_: Exception) {
-                                Toast.makeText(context, "نسخنا تفاصيل الطلب، دزها على واتساب ✅", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "تم نسخ تفاصيل الطلب، أرسلها على واتساب ✅", Toast.LENGTH_SHORT).show()
                                 val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                 cm.setPrimaryClip(ClipData.newPlainText("Order Info", message))
                             }
@@ -1591,7 +1591,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                         }
                         Spacer(Modifier.width(10.dp))
                         Text(
-                            text = "قم بتأكيد الحوالة عبر صورة للشاشة",
+                            text = "قم بتأكيد الحوالة بلقطة شاشة",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onSurface
@@ -1725,7 +1725,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text(
-                                    text = "📸 صورة شاشة مطابقة لهذا النموذج لإشعار الحوالة",
+                                    text = "📸 لقطة شاشة مطابقة لهذا النموذج لإشعار الحوالة",
                                     fontSize = 11.sp,
                                     color = BrandYellow,
                                     textAlign = TextAlign.Center,
@@ -1739,14 +1739,14 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                     Button(
                         onClick = {
                             val message = buildString {
-                                append("هلو، حوّلت مبلغ اشتراك بوردي 🍀\n")
+                                append("مرحباً، حوّلت مبلغ اشتراك بوردي 🍀\n")
                                 append("الباقة: ${orderPlanTitle.ifBlank { currentPlan.title }}\n")
                                 append("المبلغ: ${"%,d".format(finalAmount)} د.ع\n")
                                 append("طريقة التحويل: ${selectedMethod.name}\n")
                                 append("كود الطلب: $currentOrderId\n")
                                 append("كود الجهاز: $did\n")
                                 if (orderTxnRef.isNotBlank()) append("رقم العملية: ${orderTxnRef.trim()}\n")
-                                append("\nوهاي صورة الوصل 📸")
+                                append("\nوهذه صورة الوصل 📸")
                             }
                             // A placeholder support number must not be dialed; fall back to WhatsApp's share sheet.
                             val target = if (isSupportTargetValid(supportWhatsapp)) supportWhatsapp else ""
@@ -1755,7 +1755,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                 val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fullUrl))
                                 context.startActivity(intent)
                             } catch (_: Exception) {
-                                Toast.makeText(context, "ما كدر يفتح واتساب مباشرة، انسخ التفاصيل ودزها", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, "تعذر فتح واتساب مباشرة، انسخ التفاصيل وأرسلها", Toast.LENGTH_SHORT).show()
                             }
                         },
                         modifier = Modifier
@@ -1772,7 +1772,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                             tint = Color.White
                         )
                         Spacer(Modifier.width(8.dp))
-                        Text("افتح واتساب ودز صورة الوصل", fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("افتح واتساب وأرسل صورة الوصل", fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
 
@@ -1813,31 +1813,31 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                 when {
                                     accepted -> sheetError = null
                                     resp == null -> {
-                                        sheetError = "ماكو اتصال بالإنترنت حالياً، تكدر تدزه من يرجع النت."
+                                        sheetError = "لا يوجد اتصال بالإنترنت حالياً، يمكنك إرساله عند عودة الاتصال."
                                     }
                                     errorCode == "PROOF_TOO_LARGE" || errorCode == "INVALID_IMAGE" -> {
-                                        receiptError = errorMessageOf(resp) ?: "صورة الوصل مو مدعومة، اختار صورة JPG أو PNG"
+                                        receiptError = errorMessageOf(resp) ?: "صورة الوصل غير مدعومة، اختر صورة JPG أو PNG"
                                         sheetError = null
                                         return@launch
                                     }
                                     errorCode == "RATE_LIMITED" -> {
-                                        sheetError = errorMessageOf(resp) ?: "كثّرت المحاولات، انتظر شوية وجرب ثاني"
+                                        sheetError = errorMessageOf(resp) ?: "تجاوزت عدد المحاولات، انتظر قليلاً وحاول مرة أخرى"
                                         return@launch
                                     }
                                     errorCode == "ORDER_EXPIRED" || errorCode == "ORDER_NOT_FOUND" -> {
                                         LicenseStore.clearPendingOrder(context)
                                         showPaymentSheet = false
                                         sheetStep = PaymentSheetStep.Instructions
-                                        checkoutError = errorMessageOf(resp) ?: "الطلب انتهت مدته، سوّي طلب جديد"
+                                        checkoutError = errorMessageOf(resp) ?: "انتهت مدة الطلب، أنشئ طلباً جديداً"
                                         step = PaywallStep.SelectPlan
                                         return@launch
                                     }
                                     errorCode == "TXN_DUP" || errorCode == "METHOD_INVALID" || errorCode == "METHOD_REQUIRED" -> {
-                                        sheetError = errorMessageOf(resp) ?: "ما انحفظت بيانات الحوالة، راجع المعلومات"
+                                        sheetError = errorMessageOf(resp) ?: "لم تُحفظ بيانات الحوالة، راجع المعلومات"
                                         return@launch
                                     }
                                     else -> {
-                                        sheetError = errorMessageOf(resp) ?: "ما انرسل الإثبات، جرب مرة ثانية"
+                                        sheetError = errorMessageOf(resp) ?: "لم يُرسل الإثبات، حاول مرة أخرى"
                                     }
                                 }
 
@@ -1864,8 +1864,8 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                             )
                         } else {
                             Text(
-                                text = if (receiptReady) "أرسل الوصل وشيك هسّه ✅"
-                                else "انرسل — يجري الفحص والتفعيل ⏳",
+                                text = if (receiptReady) "أرسل الوصل وتحقق الآن ✅"
+                                else "أُرسل — جارٍ الفحص والتفعيل ⏳",
                                 fontWeight = FontWeight.Bold
                             )
                         }
@@ -1875,7 +1875,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                     TextButton(
                         onClick = { sheetStep = PaymentSheetStep.Instructions }
                     ) {
-                        Text("← ارجع لتفاصيل رقم المحفظة", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("← العودة إلى تفاصيل رقم المحفظة", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
 

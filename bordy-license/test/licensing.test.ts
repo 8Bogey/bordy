@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { buildTokenPayload } from '../src/handlers/activate';
 import {
   clampTrialSeconds,
+  clampExpiryNoticeUnit,
+  clampExpiryNoticeValue,
+  expiryNoticeEnabled,
   TRIAL_DEFAULT_SECONDS,
   TRIAL_MAX_SECONDS,
   TRIAL_MIN_SECONDS,
@@ -39,7 +42,7 @@ function device(overrides: Partial<DeviceRow> = {}): DeviceRow {
 
 // paidTtlDays=7, graceDays=2 — the production defaults read from settings.
 function payload(overrides: Partial<DeviceRow> = {}) {
-  return buildTokenPayload(device(overrides), NOW, 'nonce-1', 7, 2, 12, 3);
+  return buildTokenPayload(device(overrides), NOW, 'nonce-1', 7, 2, '12', 3);
 }
 
 describe('buildTokenPayload status selection', () => {
@@ -107,13 +110,20 @@ describe('buildTokenPayload pass-through fields', () => {
       exp: NOW + 100 * 365 * DAY,
       nonce: 'nonce-1',
       minv: 12,
+      minv_name: '12',
       tos_ver: 3,
     });
   });
 
+  it('keeps a decimal minimum version for name-based comparison', () => {
+    const p = buildTokenPayload(device({ lifetime: 1 }), NOW, 'nonce-2', 7, 2, '1.0', 3);
+    expect(p.minv).toBe(1);
+    expect(p.minv_name).toBe('1.0');
+  });
+
   it('keeps the caller nonce verbatim so the app can match it', () => {
     const nonce = 'x/y+z==';
-    expect(buildTokenPayload(device({ lifetime: 1 }), NOW, nonce, 7, 2, 1, 1).nonce).toBe(nonce);
+    expect(buildTokenPayload(device({ lifetime: 1 }), NOW, nonce, 7, 2, '1', 1).nonce).toBe(nonce);
   });
 });
 
@@ -132,8 +142,12 @@ describe('clampTrialSeconds', () => {
 
   it('falls back to the legacy trial_days when trial_seconds is unusable', () => {
     expect(clampTrialSeconds(undefined, '14')).toBe(14 * 86400);
-    expect(clampTrialSeconds('0', '3')).toBe(3 * 86400);
     expect(clampTrialSeconds('abc', '3')).toBe(3 * 86400);
+  });
+
+  it('treats an explicit zero as "no free trial" instead of falling back', () => {
+    expect(clampTrialSeconds('0', '3')).toBe(0);
+    expect(clampTrialSeconds('0', null)).toBe(0);
   });
 
   it('defaults to a week when neither setting is valid', () => {
@@ -144,5 +158,32 @@ describe('clampTrialSeconds', () => {
 
   it('never returns below the minimum even via the legacy path', () => {
     expect(clampTrialSeconds(undefined, '0')).toBe(TRIAL_DEFAULT_SECONDS);
+  });
+});
+
+describe('expiry notice settings', () => {
+  it('accepts the three supported units and rejects anything else', () => {
+    expect(clampExpiryNoticeUnit('days')).toBe('days');
+    expect(clampExpiryNoticeUnit('hours')).toBe('hours');
+    expect(clampExpiryNoticeUnit('minutes')).toBe('minutes');
+    expect(clampExpiryNoticeUnit('weeks')).toBe('days');
+    expect(clampExpiryNoticeUnit(undefined)).toBe('days');
+  });
+
+  it('clamps the value to the range of the chosen unit', () => {
+    expect(clampExpiryNoticeValue('3', 'days')).toBe(3);
+    expect(clampExpiryNoticeValue('0', 'days')).toBe(3);
+    expect(clampExpiryNoticeValue('99999', 'days')).toBe(365);
+    expect(clampExpiryNoticeValue('99999', 'hours')).toBe(8760);
+    expect(clampExpiryNoticeValue('9999999', 'minutes')).toBe(525600);
+    expect(clampExpiryNoticeValue('abc', 'hours')).toBe(3);
+  });
+
+  it('treats a missing key as enabled and explicit off as disabled', () => {
+    expect(expiryNoticeEnabled(undefined)).toBe(true);
+    expect(expiryNoticeEnabled(null)).toBe(true);
+    expect(expiryNoticeEnabled('1')).toBe(true);
+    expect(expiryNoticeEnabled('0')).toBe(false);
+    expect(expiryNoticeEnabled('off')).toBe(false);
   });
 });

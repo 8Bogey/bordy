@@ -114,7 +114,7 @@ fun ProjectsScreen(vm: MainViewModel, pricesHidden: Boolean = false, onOpen: (Lo
         BrandFab(
             onClick = { showNewDialog = true },
             icon = Icons.Rounded.Add,
-            contentDescription = "بورد جديد",
+            contentDescription = "مشروع جديد",
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(20.dp)
@@ -129,7 +129,7 @@ fun ProjectsScreen(vm: MainViewModel, pricesHidden: Boolean = false, onOpen: (Lo
             containerColor = MaterialTheme.colorScheme.surface,
             title = {
                 Text(
-                    "بورد جديد",
+                    "مشروع جديد",
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
@@ -138,7 +138,7 @@ fun ProjectsScreen(vm: MainViewModel, pricesHidden: Boolean = false, onOpen: (Lo
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("اسم الزبون / البورد") },
+                    label = { Text("اسم العميل / المشروع") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp)
@@ -146,7 +146,7 @@ fun ProjectsScreen(vm: MainViewModel, pricesHidden: Boolean = false, onOpen: (Lo
             },
             confirmButton = {
                 BrandButton(
-                    text = "بلّش البورد",
+                    text = "ابدأ المشروع",
                     enabled = name.isNotBlank(),
                     icon = Icons.Rounded.Add,
                     onClick = {
@@ -183,7 +183,7 @@ fun ProjectsScreen(vm: MainViewModel, pricesHidden: Boolean = false, onOpen: (Lo
             },
             text = {
                 Text(
-                    "متأكد تريد تحذف بورد '${showDeleteConfirm!!.customerName}'؟ ما تكدر ترده بعد الحذف.",
+                    "هل أنت متأكد من رغبتك في حذف مشروع '${showDeleteConfirm!!.customerName}'؟ لا يمكنك استعادته بعد الحذف.",
                     style = MaterialTheme.typography.bodyMedium
                 )
             },
@@ -196,7 +196,7 @@ fun ProjectsScreen(vm: MainViewModel, pricesHidden: Boolean = false, onOpen: (Lo
                     colors = ButtonDefaults.buttonColors(containerColor = DangerRed),
                     shape = CircleShape
                 ) {
-                    Text("اي، احذف", fontWeight = FontWeight.Bold)
+                    Text("نعم، احذف", fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
@@ -242,7 +242,7 @@ private fun ProjectFilterSegmentedBar(
             verticalAlignment = Alignment.CenterVertically
         ) {
             FilterTabItem(
-                label = "قيد العمل",
+                label = "قيد التنفيذ",
                 count = activeCount,
                 isSelected = selectedStatus == "ACTIVE",
                 accentColor = BrandYellow,
@@ -253,7 +253,7 @@ private fun ProjectFilterSegmentedBar(
                 modifier = Modifier.weight(1f)
             )
             FilterTabItem(
-                label = "مستقبل",
+                label = "مجدول",
                 count = futureCount,
                 isSelected = selectedStatus == "FUTURE",
                 accentColor = BrandYellow,
@@ -448,7 +448,7 @@ fun ProjectCard(
                 if (done) {
                     Spacer(modifier = Modifier.height(4.dp))
                     SolidBadge(
-                        text = "تسلم يوم ${formatDateWithDay(p.completedAt!!)}",
+                        text = "سُلّم يوم ${formatDateWithDay(p.completedAt!!)}",
                         color = SellGreen,
                         icon = Icons.Rounded.CheckCircle
                     )
@@ -495,9 +495,9 @@ fun ProjectCard(
 @Composable
 private fun EmptyProjectsState(status: String) {
     val (statusLabel, statusIcon) = when (status) {
-        "DONE" -> Pair("ما عندك بوردات مخلصة هسّه", Icons.Rounded.TaskAlt)
-        "FUTURE" -> Pair("ما عندك بوردات مجدولة لبعدين", Icons.Rounded.EventAvailable)
-        else -> Pair("ما عندك بوردات شغّال عليها هسّه.. اضغط + وبلّش!", Icons.Rounded.Build)
+        "DONE" -> Pair("ليس لديك مشاريع منتهية الآن", Icons.Rounded.TaskAlt)
+        "FUTURE" -> Pair("ليس لديك مشاريع مجدولة لاحقاً", Icons.Rounded.EventAvailable)
+        else -> Pair("ليس لديك مشاريع قيد التنفيذ الآن.. اضغط + وابدأ!", Icons.Rounded.Build)
     }
 
     EmptyState(icon = statusIcon as ImageVector, message = statusLabel)

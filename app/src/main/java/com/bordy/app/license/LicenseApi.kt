@@ -26,9 +26,17 @@ data class PlansResponse(
     val paymentMethods: List<PaymentMethod>,
     val supportTelegram: String,
     val supportWhatsapp: String,
+    val expiryNotice: ExpiryNoticeInfo = ExpiryNoticeInfo(),
     val version: Long = 0L,
     val syncIntervalSeconds: Int = 60,
     val foregroundSyncSeconds: Int = 10
+)
+
+/** Owner-configurable "باقي على انتهاء اشتراكك …" reminder (unit: days/hours/minutes). */
+data class ExpiryNoticeInfo(
+    val enabled: Boolean = true,
+    val unit: String = "days",
+    val value: Int = 3
 )
 
 data class PlanItem(
@@ -151,6 +159,12 @@ private fun parsePlansResponse(json: JSONObject): PlansResponse? {
         )
     }
     val support = json.optJSONObject("support")
+    val noticeObj = json.optJSONObject("expiry_notice")
+    val expiryNotice = ExpiryNoticeInfo(
+        enabled = noticeObj?.optBoolean("enabled", true) ?: true,
+        unit = noticeObj?.optNullableString("unit") ?: "days",
+        value = noticeObj?.optInt("value", 3) ?: 3
+    )
     return PlansResponse(
         plans = plans,
         autoDiscount = autoDiscount,
@@ -158,6 +172,7 @@ private fun parsePlansResponse(json: JSONObject): PlansResponse? {
         paymentMethods = parsePaymentMethods(json.optJSONArray("payment_methods")),
         supportTelegram = support?.optNullableString("telegram") ?: "",
         supportWhatsapp = support?.optNullableString("whatsapp") ?: "",
+        expiryNotice = expiryNotice,
         version = json.optLong("config_version", 0L),
         syncIntervalSeconds = json.optInt("sync_interval_seconds", SYNC_INTERVAL_DEFAULT)
             .coerceIn(SYNC_INTERVAL_MIN, SYNC_INTERVAL_MAX),

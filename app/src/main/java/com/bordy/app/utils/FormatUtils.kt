@@ -32,8 +32,8 @@ fun String.withThousandsDot(): AnnotatedString = buildAnnotatedString {
     }
 }
 
-// اسم الحجم الافتراضي: يظهر دائماً بعد اسم القطعة بوصفه «القطعة - إفتراضي»
-const val DEFAULT_VARIANT_NAME = "إفتراضي"
+// اسم الحجم الافتراضي: يظهر دائماً بعد اسم القطعة بوصفه «القطعة - افتراضي»
+const val DEFAULT_VARIANT_NAME = "افتراضي"
 
 // الحجم الخفي للقطعة الاعتيادية يحمل اسم القطعة ويكون وحيداً — وجوده تفصيل تخزيني لا يُعرض كحجم
 fun ComponentVariant.isHiddenBase(componentName: String?): Boolean =

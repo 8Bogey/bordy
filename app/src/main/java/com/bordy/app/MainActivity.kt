@@ -75,12 +75,8 @@ fun MainAppRoot() {
 
     BordyTheme(darkTheme = dark) {
         val licenseState by LicenseManager.state.collectAsState()
-        // Debug builds bypass an expired licence so local sync testing is possible.
-        val state = if (BuildConfig.DEBUG && licenseState is LicenseState.Expired) {
-            LicenseState.Trial(daysLeft = 1, showBanner = true)
-        } else licenseState
 
-        when (state) {
+        when (val state = licenseState) {
             is LicenseState.Loading -> {
                 Box(
                     modifier = Modifier
@@ -147,14 +143,14 @@ fun BlockedScreen(reason: String?) {
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = "حسابك موقف ⛔",
+                text = "حسابك موقوف ⛔",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = DangerRed
             )
             Spacer(Modifier.height(16.dp))
             Text(
-                text = reason ?: "تواصل مع الدعم الفني وننظمها وياك",
+                text = reason ?: "تواصل مع الدعم الفني وسنساعدك في حلها",
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center
             )
@@ -183,14 +179,14 @@ fun ClockTamperScreen() {
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = "وقت التلفون مو مضبوط 🕒",
+                text = "وقت الجهاز غير مضبوط 🕒",
                 style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = DangerRed
             )
             Spacer(Modifier.height(16.dp))
             Text(
-                text = "تاريخ أو وقت تلفونك مو مضبوطين. عدل الساعة والتاريخ من إعدادات التلفون وسويها تلقائية حتى تكدر تكمل شغلك.",
+                text = "تاريخ جهازك أو وقته غير مضبوطين. اضبط الساعة والتاريخ من إعدادات الجهاز وفعّل الضبط التلقائي حتى تتمكن من متابعة عملك.",
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center
             )
@@ -200,14 +196,14 @@ fun ClockTamperScreen() {
                     LicenseManager.checkAndRefresh(context)
                 }
             ) {
-                Text("شيك هسّه")
+                Text("تحقق الآن")
             }
         }
     }
 }
 
 @Composable
-fun UpdateRequiredScreen(minVersion: Int) {
+fun UpdateRequiredScreen(minVersion: String) {
     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         Column(
             modifier = Modifier
@@ -224,7 +220,7 @@ fun UpdateRequiredScreen(minVersion: Int) {
             )
             Spacer(Modifier.height(16.dp))
             Text(
-                text = "حتى تكمل شغلك بدون مشاكل، لازم تحدّث التطبيق للإصدار الجديد ($minVersion).",
+                text = "لمتابعة عملك دون مشكلات، يجب تحديث التطبيق إلى الإصدار الجديد ($minVersion).",
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center
             )

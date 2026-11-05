@@ -151,7 +151,7 @@ fun ComponentsScreen(vm: MainViewModel, pricesHidden: Boolean = false, onOpenSup
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { s: String -> searchQuery = s },
-                        placeholder = { Text(if (!TagsEnabled || allTags.isEmpty()) "دوّر بالاسم..." else "دوّر بالاسم أو الوسم...", style = MaterialTheme.typography.bodyMedium) },
+                        placeholder = { Text(if (!TagsEnabled || allTags.isEmpty()) "ابحث بالاسم..." else "ابحث بالاسم أو الوسم...", style = MaterialTheme.typography.bodyMedium) },
                         leadingIcon = { Icon(Icons.Default.Search, null, tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)) },
                         trailingIcon = if (searchQuery.isNotEmpty()) {
                             {
@@ -198,7 +198,7 @@ fun ComponentsScreen(vm: MainViewModel, pricesHidden: Boolean = false, onOpenSup
                     ) {
                         Icon(
                             Icons.Default.Store,
-                            "المزودون",
+                            "الموردون",
                             tint = OnBrandYellow,
                             modifier = Modifier.size(20.dp)
                         )
@@ -769,7 +769,7 @@ fun ComponentDetailSheet(component: Component, variants: List<ComponentVariant>,
                             }
                             Spacer(Modifier.height(4.dp))
                             Text(
-                                "استخدم زرّي + و − في الأعلى لتعديل الكمية، أو أضف حجماً لاستخدام القطعة في القوالب والمزودين والبوردات.",
+                                "استخدم زرّي + و − في الأعلى لتعديل الكمية، أو أضف حجماً لاستخدام القطعة في القوالب والموردين والمشاريع.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center
@@ -781,7 +781,7 @@ fun ComponentDetailSheet(component: Component, variants: List<ComponentVariant>,
             TextButton(onClick = { showDeleteConfirm = true }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.textButtonColors(contentColor = DangerRed)) { Icon(Icons.Default.Delete, null); Spacer(Modifier.width(8.dp)); Text("احذف المادة بالكامل") }
         }
     }
-    if (showDeleteConfirm) { AlertDialog(onDismissRequest = { showDeleteConfirm = false }, containerColor = MaterialTheme.colorScheme.surface, title = { Text("تأكيد الحذف") }, text = { Text("راح تنحذف المادة وكل قياساتها، متأكد؟") }, confirmButton = { Button(onClick = {
+    if (showDeleteConfirm) { AlertDialog(onDismissRequest = { showDeleteConfirm = false }, containerColor = MaterialTheme.colorScheme.surface, title = { Text("تأكيد الحذف") }, text = { Text("سيتم حذف المادة وجميع أحجامها. هل أنت متأكد؟") }, confirmButton = { Button(onClick = {
         showDeleteConfirm = false
         componentDeletion.attempt { confirmed, result -> vm.deleteComponent(component, confirmed, result) }
     }, colors = ButtonDefaults.buttonColors(containerColor = DangerRed)) { Text("حذف") } }, dismissButton = { TextButton(onClick = { showDeleteConfirm = false }) { Text("إلغاء") } }) }
@@ -1091,8 +1091,8 @@ fun VariantDetailCard(
             title = { Text("تأكيد حذف الحجم") },
             text = {
                 Text(
-                    if (variant.isBase) "سيتم حذف الحجم الافتراضي وإرجاع بياناته إلى القطعة لتصبح قطعة اعتيادية بدون أحجام، ويختفي اسم الحجم. متأكد؟"
-                    else "سيتم حذف الحجم ومخزونه (كمية ${variant.stockCount}). متأكد؟"
+                    if (variant.isBase) "سيتم حذف الحجم الافتراضي وإرجاع بياناته إلى القطعة لتصبح قطعة اعتيادية بدون أحجام، ويختفي اسم الحجم. هل أنت متأكد؟"
+                    else "سيتم حذف الحجم ومخزونه (كمية ${variant.stockCount}). هل أنت متأكد؟"
                 )
             },
             confirmButton = {

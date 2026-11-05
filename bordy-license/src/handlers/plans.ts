@@ -14,5 +14,6 @@ export async function handleGetPlans(request: Request, env: Env): Promise<Respon
     config_version: config.version,
     sync_interval_seconds: config.syncIntervalSeconds,
     foreground_sync_seconds: config.foregroundSyncSeconds,
+    expiry_notice: config.expiryNotice,
   });
 }

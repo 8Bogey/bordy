@@ -109,12 +109,12 @@ fun SuppliersScreen(vm: MainViewModel, onBack: () -> Unit) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
-            SlimScreenHeader(title = "المجهّزين والمحلات", onBack = onBack) {
+            SlimScreenHeader(title = "الموردون والمحلات", onBack = onBack) {
                 Box(contentAlignment = Alignment.TopEnd) {
                     TintedCircleButton(
                         onClick = { showCart = true },
                         icon = Icons.Default.ShoppingCart,
-                        contentDescription = "سلة الشراء",
+                        contentDescription = "سلة المشتريات",
                         tint = if (cartQty > 0) SellGreen else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
                         size = 40.dp,
                         iconSize = 20.dp
@@ -142,14 +142,14 @@ fun SuppliersScreen(vm: MainViewModel, onBack: () -> Unit) {
         ) {
             item(span = { GridItemSpan(maxLineSpan) }) {
                 Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.Bottom) {
-                    Text("المجهّزين والمحلات", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Text("الموردون والمحلات", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.width(8.dp))
-                    Text("اضغط مزودًا لعرض قطعه", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                    Text("اضغط مورداً لعرض قطعه", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                 }
             }
             if (localItems.isEmpty()) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    EmptyState(icon = Icons.Default.Storefront, message = "ما عندك مجهّزين مسجلين هسّه.. أضف مجهّز واربط مواده بقائمته! 🏪")
+                    EmptyState(icon = Icons.Default.Storefront, message = "ليس لديك موردون مسجّلون الآن.. أضف مورداً واربط مواده بقائمته! 🏪")
                 }
             }
             gridItems(items = localItems, key = { sup: Supplier -> "sup-${sup.id}" }, span = { GridItemSpan(maxLineSpan) }) { sup: Supplier ->
@@ -299,7 +299,7 @@ fun SuppliersScreen(vm: MainViewModel, onBack: () -> Unit) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        if (filteredName == null) "قطع لدى المزودين" else "قطع ${filteredName}",
+                        if (filteredName == null) "قطع لدى الموردين" else "قطع ${filteredName}",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -315,8 +315,8 @@ fun SuppliersScreen(vm: MainViewModel, onBack: () -> Unit) {
             if (piecesHere.isEmpty()) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     Text(
-                        if (localItems.isEmpty()) "أضف مزودًا أولًا لعرض قطعه هنا."
-                        else "لم تربط أي قطعة بمزود بعد — القطعة تظهر هنا حسب ارتباطها بمزود لا حسب مخزونك.",
+                        if (localItems.isEmpty()) "أضف مورداً أولاً لعرض قطعه هنا."
+                        else "لم تربط أي قطعة بمورد بعد — القطعة تظهر هنا حسب ارتباطها بمورد لا حسب مخزونك.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
@@ -397,11 +397,11 @@ fun SuppliersScreen(vm: MainViewModel, onBack: () -> Unit) {
             onDismissRequest = { showAddDialog = false },
             shape = DialogShape,
             containerColor = MaterialTheme.colorScheme.surface,
-            title = { Text(if (editingSupplier == null) "مجهّز جديد +" else "تعديل المجهّز", fontWeight = FontWeight.Bold) },
+            title = { Text(if (editingSupplier == null) "مورد جديد +" else "تعديل المورد", fontWeight = FontWeight.Bold) },
             text = { Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name, onValueChange = { s: String -> name = s }, label = { Text("اسم المجهّز / المحل") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp))
+                OutlinedTextField(value = name, onValueChange = { s: String -> name = s }, label = { Text("اسم المورد / المحل") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp))
                 OutlinedTextField(value = phone, onValueChange = { s: String -> phone = s }, label = { Text("رقم الهاتف") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp))
-                OutlinedTextField(value = delivery, onValueChange = { s: String -> delivery = s }, label = { Text("كروة التوصيل") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp))
+                OutlinedTextField(value = delivery, onValueChange = { s: String -> delivery = s }, label = { Text("أجرة التوصيل") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp))
                 OutlinedTextField(value = minOrder, onValueChange = { s: String -> minOrder = s }, label = { Text("أقل كمية طلب") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp))
             } },
             confirmButton = { BrandButton(
@@ -427,15 +427,15 @@ fun SuppliersScreen(vm: MainViewModel, onBack: () -> Unit) {
             shape = DialogShape,
             title = { Text("تأكيد الحذف", fontWeight = FontWeight.Bold, color = DangerRed) },
             text = { Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("متأكد تريد تحذف المجهّز '${doomed.name}'؟")
+                Text("هل أنت متأكد من رغبتك في حذف المورد '${doomed.name}'؟")
                 if (doomedLinks.isNotEmpty()) {
                     Text(
-                        "سيُفكّ ${doomedLinks.size} رابطًا من قائمته" + if (lostPieces > 0) "، وستختفي $lostPieces قطعة من شبكة «قطع لدى المزودين»." else ".",
+                        "سيُفكّ ${doomedLinks.size} رابطًا من قائمته" + if (lostPieces > 0) "، وستختفي $lostPieces قطعة من شبكة «قطع لدى الموردين»." else ".",
                         style = MaterialTheme.typography.bodySmall,
                         color = BrandYellow,
                         fontWeight = FontWeight.Bold
                     )
-                    Text("موادك بالمخزن وأسعار بيعك ما تتأثر أبد.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+                    Text("موادك في المخزن وأسعار بيعك لا تتأثر أبداً.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
                 }
             } },
             confirmButton = { Button(onClick = { vm.deleteSupplier(showDeleteConfirm!!); showDeleteConfirm = null }, colors = ButtonDefaults.buttonColors(containerColor = DangerRed), shape = CircleShape) { Text("حذف", fontWeight = FontWeight.Bold) } },
@@ -451,11 +451,11 @@ private data class PieceSupply(
 )
 
 fun suppliedByLabel(n: Int): String = when {
-    n <= 0 -> "بلا مزود"
-    n == 1 -> "لدى مزود واحد"
-    n == 2 -> "لدى مزودين"
-    n in 3..10 -> "لدى $n مزودين"
-    else -> "لدى $n مزودًا"
+    n <= 0 -> "بلا مورد"
+    n == 1 -> "لدى مورد واحد"
+    n == 2 -> "لدى موردين"
+    n in 3..10 -> "لدى $n موردين"
+    else -> "لدى $n موردًا"
 }
 
 fun supplierPiecesLabel(n: Int): String = when {
@@ -473,18 +473,18 @@ fun piecesPlural(n: Int): String = when {
 }
 
 fun suppliersPlural(n: Int): String = when {
-    n == 1 -> "مزود واحد"
-    n == 2 -> "مزودان"
-    n in 3..10 -> "$n مزودين"
-    else -> "$n مزودًا"
+    n == 1 -> "مورد واحد"
+    n == 2 -> "موردان"
+    n in 3..10 -> "$n موردين"
+    else -> "$n موردًا"
 }
 
 // داخل الجملة بعد اللام: المثنى يُجر فيصير «لمزودين» لا «لمزودان»
 fun deliverySuppliersPhrase(n: Int): String = when {
-    n == 1 -> "لمزود واحد"
-    n == 2 -> "لمزودين"
-    n in 3..10 -> "لـ$n مزودين"
-    else -> "لـ$n مزودًا"
+    n == 1 -> "لمورد واحد"
+    n == 2 -> "لموردين"
+    n in 3..10 -> "لـ$n موردين"
+    else -> "لـ$n موردًا"
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
@@ -563,9 +563,9 @@ fun PieceSuppliersSheet(
 
             HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
             Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("المجهّزين (الأرخص أولاً)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text("الموردون (الأرخص أولاً)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
-                Text("سعر الشراء من المجهّز", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f))
+                Text("سعر الشراء من المورد", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f))
             }
 
             if (rows.isEmpty()) {
@@ -573,8 +573,8 @@ fun PieceSuppliersSheet(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         EmptyState(
                             icon = Icons.Default.Storefront,
-                            message = if (selectedVariant == null) "هذه القطعة بلا أحجام — أضف لها حجمًا من المخزون لتتمكن من ربطها بمزود"
-                            else "لا مزود يوفّر ${componentLabel(component.name, selectedVariant, "هذه القطعة")} بعد"
+                            message = if (selectedVariant == null) "هذه القطعة بلا أحجام — أضف لها حجمًا من المخزون لتتمكن من ربطها بمورد"
+                            else "لا يوجد مورد يوفّر ${componentLabel(component.name, selectedVariant, "هذه القطعة")} بعد"
                         )
                     }
                 }
@@ -604,7 +604,7 @@ fun PieceSuppliersSheet(
 
             if (selectedVariant != null) {
                 BrandButton(
-                    text = "ربط القطعة بمزود",
+                    text = "ربط القطعة بمورد",
                     icon = Icons.Default.Link,
                     onClick = { showLinkDialog = true },
                     modifier = Modifier.fillMaxWidth()
@@ -628,7 +628,7 @@ fun PieceSuppliersSheet(
                         }
                         Spacer(Modifier.width(10.dp))
                         Column(Modifier.weight(1f)) {
-                            Text("سلة المسواك", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
+                            Text("سلة المشتريات", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, fontSize = 14.sp)
                             Text(
                                 "${piecesPlural(cartTotalQty)} · اضغط للمراجعة",
                                 style = MaterialTheme.typography.labelSmall,
@@ -658,7 +658,7 @@ fun PieceSuppliersSheet(
     }
 
     if (unlinkOffer != null) {
-        val supplierName = suppliers.firstOrNull { s: Supplier -> s.id == unlinkOffer!!.supplierId }?.name ?: "المزود"
+        val supplierName = suppliers.firstOrNull { s: Supplier -> s.id == unlinkOffer!!.supplierId }?.name ?: "المورد"
         AlertDialog(
             onDismissRequest = { unlinkOffer = null },
             shape = DialogShape,
@@ -733,7 +733,7 @@ private fun SizeChip(label: String, supplierCount: Int, selected: Boolean, onCli
             Text(label.ifEmpty { "حجم" }, fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium, fontSize = 12.sp, color = if (selected) contentColorOn(BrandYellow) else MaterialTheme.colorScheme.onSurface)
             Spacer(Modifier.width(6.dp))
             Text(
-                if (supplierCount == 0) "بلا مزود" else "$supplierCount",
+                if (supplierCount == 0) "بلا مورد" else "$supplierCount",
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Bold,
                 color = if (supplierCount == 0) DangerRed else if (selected) contentColorOn(BrandYellow) else SellGreen
@@ -824,7 +824,7 @@ private fun SupplierPriceRow(
             TintedCircleButton(
                 onClick = onAddToCart,
                 icon = Icons.Default.ShoppingCart,
-                contentDescription = "إضافة لسلة الشراء",
+                contentDescription = "إضافة إلى سلة المشتريات",
                 tint = BuyAmber,
                 size = 30.dp,
                 iconSize = 15.dp
@@ -868,10 +868,10 @@ private fun EditOfferDialog(
         title = { Text("سعر $label", fontWeight = FontWeight.Bold) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedTextField(value = price, onValueChange = { price = it }, label = { Text("سعر الشراء من المزود") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp))
+                OutlinedTextField(value = price, onValueChange = { price = it }, label = { Text("سعر الشراء من المورد") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp))
                 OutlinedTextField(value = minOrder, onValueChange = { minOrder = it }, label = { Text("أقل كمية") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp))
                 if (parsedPrice == null || parsedPrice <= 0.0) {
-                    Text("بلا سعر: لن يدخل هذا المزود المقارنة حتى تكتب سعرًا صحيحًا.", style = MaterialTheme.typography.labelSmall, color = BrandYellow)
+                    Text("بلا سعر: لن يدخل هذا المورد المقارنة حتى تكتب سعراً صحيحاً.", style = MaterialTheme.typography.labelSmall, color = BrandYellow)
                 }
             }
         },
@@ -909,7 +909,7 @@ private fun LinkSupplierDialog(
         title = { Text(if (chosen == null) "ربط ${componentLabel(component.name, variant, "القطعة")}" else "${chosen!!.name}", fontWeight = FontWeight.Bold) },
         text = {
             if (suppliers.isEmpty()) {
-                Text("لا مزودين بعد — أضف مزودًا من الشاشة الرئيسية أولًا.")
+                Text("لا يوجد موردون بعد — أضف مورداً من الشاشة الرئيسية أولاً.")
             } else if (chosen == null) {
                 Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     suppliers.forEach { s: Supplier ->
@@ -933,7 +933,7 @@ private fun LinkSupplierDialog(
                             }
                         }
                     }
-                    Text("اختيار مزود مربوط مسبقًا يفتح سعره للتعديل بدل تكرار الربط.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
+                    Text("اختيار مورد مربوط مسبقًا يفتح سعره للتعديل بدل تكرار الربط.", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f))
                 }
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -1033,7 +1033,7 @@ fun AddOfferSheet(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             IconButton(onClick = onDismiss) { Icon(Icons.Default.Close, "إغلاق", tint = MaterialTheme.colorScheme.onSurface) }
-                            Text("إضافة قطعة إلى المزود", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = SellGreen, modifier = Modifier.weight(1f))
+                            Text("إضافة قطعة إلى المورد", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = SellGreen, modifier = Modifier.weight(1f))
                             TintedCircleButton(
                                 onClick = { showNewComponent = true },
                                 icon = Icons.Default.Add,
@@ -1071,7 +1071,7 @@ fun AddOfferSheet(
                         ) {
                             Icon(Icons.Default.CheckCircle, null, tint = Color.White)
                             Spacer(Modifier.width(8.dp))
-                            Text("تم ربط $addedCount قطعة بقائمة المزود", fontWeight = FontWeight.Bold, color = Color.White)
+                            Text("تم ربط $addedCount قطعة بقائمة المورد", fontWeight = FontWeight.Bold, color = Color.White)
                         }
                     }
                 }
@@ -1154,7 +1154,7 @@ fun AddOfferSheet(
             onDismissRequest = { pricingComponent = null; pricingVariant = null },
             shape = DialogShape,
             containerColor = MaterialTheme.colorScheme.surface,
-            title = { Text("ربط القطعة بالمزود", fontWeight = FontWeight.Bold, color = SellGreen) },
+            title = { Text("ربط القطعة بالمورد", fontWeight = FontWeight.Bold, color = SellGreen) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
@@ -1179,7 +1179,7 @@ fun AddOfferSheet(
                     OutlinedTextField(
                         value = purchase,
                         onValueChange = { purchase = it },
-                        label = { Text("سعر الشراء من المزود") },
+                        label = { Text("سعر الشراء من المورد") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp)
@@ -1214,7 +1214,7 @@ fun AddOfferSheet(
                         addedCount++
                         scope.launch {
                             snackbarHostState.showSnackbar(
-                                "تم ${if (existingOffer != null) "تحديث" else "ربط"} ${comp.name} في قائمة المزود",
+                                "تم ${if (existingOffer != null) "تحديث" else "ربط"} ${comp.name} في قائمة المورد",
                                 duration = SnackbarDuration.Short
                             )
                         }
@@ -1236,7 +1236,7 @@ fun AddOfferSheet(
                 addedCount++
                 scope.launch {
                     snackbarHostState.showSnackbar(
-                        "أُضيفت ${comp.name} إلى المخزون ورُبطت بالمزود",
+                        "أُضيفت ${comp.name} إلى المخزون ورُبطت بالمورد",
                         duration = SnackbarDuration.Short
                     )
                 }
@@ -1291,11 +1291,11 @@ private fun NewSupplierComponentDialog(
                     Text("صورة القطعة (اختياري)", fontWeight = FontWeight.Medium)
                 }
                 OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("اسم القطعة") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp))
-                OutlinedTextField(value = purchase, onValueChange = { purchase = it }, label = { Text("سعر الشراء من المزود") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp))
+                OutlinedTextField(value = purchase, onValueChange = { purchase = it }, label = { Text("سعر الشراء من المورد") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp))
                 OutlinedTextField(value = sell, onValueChange = { sell = it }, label = { Text("سعر البيع") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp))
                 OutlinedTextField(value = stock, onValueChange = { stock = it }, label = { Text("المخزون الابتدائي") }, singleLine = true, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(14.dp))
                 Text(
-                    "ستُضاف القطعة إلى المخزون كقطعة جديدة وتُربط بهذا المزود بسعر الشراء نفسه. الربط لا يخصم من المخزون.",
+                    "ستُضاف القطعة إلى المخزون كقطعة جديدة وتُربط بهذا المورد بسعر الشراء نفسه. الربط لا يخصم من المخزون.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                 )
@@ -1390,7 +1390,7 @@ fun PurchaseCartSheet(
                 }
                 Spacer(Modifier.width(10.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("سلة المسواك", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                    Text("سلة المشتريات", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
                     if (lines.isNotEmpty()) {
                         Text(
                             "${piecesPlural(lines.sumOf { l: CartLine -> l.item.quantity })} · ${suppliersPlural(groups.size)}",
@@ -1412,7 +1412,7 @@ fun PurchaseCartSheet(
                 Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                     EmptyState(
                         icon = Icons.Default.ShoppingCart,
-                        message = "سلة المسواك فارغة هسّه.. تكدر تضيف مواد من قوائم المجهّزين وتجمع مسواكك كله هنا"
+                        message = "سلة المشتريات فارغة الآن.. يمكنك إضافة مواد من قوائم الموردين وتجميع مشترياتك هنا"
                     )
                 }
             } else {
@@ -1437,8 +1437,8 @@ fun PurchaseCartSheet(
         AlertDialog(
             onDismissRequest = { confirmClear = false },
             shape = DialogShape,
-            title = { Text("تفريغ سلة المسواك", fontWeight = FontWeight.Bold, color = DangerRed) },
-            text = { Text("راح تنشال كل المواد من السلة. أسعارك وقوائم المجهّزين ما تتأثر.") },
+            title = { Text("تفريغ سلة المشتريات", fontWeight = FontWeight.Bold, color = DangerRed) },
+            text = { Text("ستُزال كل المواد من السلة. أسعارك وقوائم الموردين لا تتأثر.") },
             confirmButton = {
                 Button(
                     onClick = { vm.clearCart(); confirmClear = false; onDismiss() },

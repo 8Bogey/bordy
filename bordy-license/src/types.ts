@@ -20,7 +20,8 @@ export interface TokenPayload {
   iat: number;      // issued at
   exp: number;      // expires at
   nonce: string;    // from app
-  minv: number;     // minimum app version required
+  minv: number;     // minimum app version code (legacy clients)
+  minv_name?: string; // minimum app version name, e.g. "1.0" (decimal-aware)
   msg?: string;     // optional message
   tos_ver: number;  // TOS version accepted
 }

@@ -120,6 +120,9 @@ object LicenseStore {
     private const val KEY_FOREGROUND_SYNC = "foreground_sync_seconds"
     private const val KEY_LAST_SYNC_AT = "last_sync_at"
     private const val KEY_BLOCKED_REASON = "blocked_reason"
+    private const val KEY_NOTICE_ENABLED = "expiry_notice_enabled"
+    private const val KEY_NOTICE_UNIT = "expiry_notice_unit"
+    private const val KEY_NOTICE_VALUE = "expiry_notice_value"
 
     private const val SYNC_INTERVAL_DEFAULT = 60
     private const val SYNC_INTERVAL_MIN = 15
@@ -186,6 +189,33 @@ object LicenseStore {
     }
 
     fun isBlocked(context: Context): Boolean = getBlockedReason(context) != null
+
+    // ── Expiry notice (owner-controlled from the panel) ──────────────────────
+
+    /**
+     * Cached so the banner and the settings row survive a cold start offline.
+     * Absent key means "on": the reminder exists unless the owner turned it off.
+     */
+    fun getExpiryNotice(context: Context): ExpiryNoticeConfig {
+        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val enabled = !prefs.contains(KEY_NOTICE_ENABLED) || prefs.getBoolean(KEY_NOTICE_ENABLED, true)
+        val unit = NoticeUnit.fromKey(prefs.getString(KEY_NOTICE_UNIT, NoticeUnit.DAYS.key))
+        val max = when (unit) {
+            NoticeUnit.DAYS -> 365
+            NoticeUnit.HOURS -> 8760
+            NoticeUnit.MINUTES -> 525600
+        }
+        val value = prefs.getInt(KEY_NOTICE_VALUE, 3).coerceIn(1, max)
+        return ExpiryNoticeConfig(enabled = enabled, unit = unit, value = value)
+    }
+
+    fun saveExpiryNotice(context: Context, config: ExpiryNoticeConfig) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putBoolean(KEY_NOTICE_ENABLED, config.enabled)
+            .putString(KEY_NOTICE_UNIT, config.unit.key)
+            .putInt(KEY_NOTICE_VALUE, config.value)
+            .apply()
+    }
 
     data class PendingOrder(
         val id: String,

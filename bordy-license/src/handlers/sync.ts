@@ -99,7 +99,7 @@ export async function handleSync(request: Request, env: Env): Promise<Response> 
 
   const paidTtlDays = parseInt(settings.paid_token_ttl_days || '7');
   const graceDays = parseInt(settings.grace_days || '2');
-  const minAppVersion = parseInt(settings.min_app_version || '1');
+  const minAppVersion = String(settings.min_app_version || '1').trim() || '1';
   const tosVersion = parseInt(settings.tos_version || '1');
 
   const nextClaims = buildTokenPayload(
@@ -155,5 +155,6 @@ export async function handleSync(request: Request, env: Env): Promise<Response> 
     config_version: config.version,
     sync_interval_seconds: config.syncIntervalSeconds,
     foreground_sync_seconds: config.foregroundSyncSeconds,
+    expiry_notice: config.expiryNotice,
   });
 }

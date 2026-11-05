@@ -65,7 +65,7 @@ data class MainNavTab(
 
 @Composable
 fun appNavTabs(): List<MainNavTab> = listOf(
-    MainNavTab("بوردات", ImageVector.vectorResource(R.drawable.ic_nav_star)),
+    MainNavTab("مشاريع", ImageVector.vectorResource(R.drawable.ic_nav_star)),
     MainNavTab("قوالب", ImageVector.vectorResource(R.drawable.ic_nav_bookmark)),
     MainNavTab("المخزن", ImageVector.vectorResource(R.drawable.ic_nav_lines)),
     MainNavTab("حاسبة", ImageVector.vectorResource(R.drawable.ic_nav_plus))

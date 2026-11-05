@@ -22,6 +22,7 @@ data class TokenPayload(
     val exp: Long,
     val nonce: String,
     val minv: Int,
+    val minvName: String?,
     val msg: String?,
     val tos_ver: Int
 )
@@ -69,6 +70,7 @@ object LicenseToken {
             exp = obj.getLong("exp"),
             nonce = obj.getString("nonce"),
             minv = obj.optInt("minv", 1),
+            minvName = obj.optString("minv_name", "").trim().takeIf { it.isNotEmpty() },
             msg = obj.optString("msg").takeIf { it.isNotEmpty() },
             tos_ver = obj.optInt("tos_ver", 1)
         )

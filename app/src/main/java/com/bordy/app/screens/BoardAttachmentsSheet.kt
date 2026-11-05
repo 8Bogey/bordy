@@ -80,7 +80,7 @@ fun BoardAttachmentsSheet(vm: MainViewModel, projectId: Long, onDismiss: () -> U
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Default.AttachFile, null, tint = SellGreen, modifier = Modifier.size(20.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("مرفقات البورد وملاحظته", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("مرفقات المشروع وملاحظته", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                 Spacer(Modifier.weight(1f))
                 Text("${images.size + videos.size}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
             }
@@ -108,7 +108,7 @@ fun BoardAttachmentsSheet(vm: MainViewModel, projectId: Long, onDismiss: () -> U
                             Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Icon(Icons.AutoMirrored.Filled.StickyNote2, null, tint = BrandYellow, modifier = Modifier.size(18.dp))
                                 Spacer(Modifier.width(10.dp))
-                                Text("أضف ملاحظة لهذا البورد", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                                Text("أضف ملاحظة لهذا المشروع", fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
                                 Icon(Icons.Default.Add, null, tint = SellGreen, modifier = Modifier.size(18.dp))
                             }
                         }
@@ -207,7 +207,7 @@ fun BoardAttachmentsSheet(vm: MainViewModel, projectId: Long, onDismiss: () -> U
             onDismissRequest = { pendingDelete = null },
             shape = DialogShape,
             title = { Text("حذف المرفق", fontWeight = FontWeight.Bold, color = DangerRed) },
-            text = { Text(if (m.kind == MediaVideo) "يُحذف هذا الفيديو من البورد." else "يُحذف هذا الملف من البورد.") },
+            text = { Text(if (m.kind == MediaVideo) "يُحذف هذا الفيديو من المشروع." else "يُحذف هذا الملف من المشروع.") },
             confirmButton = {
                 Button(
                     onClick = { vm.deleteProjectMedia(context, m); pendingDelete = null },

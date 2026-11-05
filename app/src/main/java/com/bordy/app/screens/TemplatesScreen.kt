@@ -80,6 +80,7 @@ import com.bordy.app.utils.*
 import com.bordy.app.viewmodel.MainViewModel
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import androidx.compose.ui.platform.LocalConfiguration
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -116,7 +117,7 @@ fun TemplatesScreen(vm: MainViewModel, pricesHidden: Boolean = false) {
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    EmptyState(icon = Icons.Default.BookmarkBorder, message = "ما عندك قوالب محفوظة هسّه.. أضف أول قالب! 📋")
+                    EmptyState(icon = Icons.Default.BookmarkBorder, message = "ليس لديك قوالب محفوظة الآن.. أضف أول قالب! 📋")
                 }
             } else {
                 LazyColumn(
@@ -228,7 +229,7 @@ fun TemplatesScreen(vm: MainViewModel, pricesHidden: Boolean = false) {
                     OutlinedTextField(
                         value = labor,
                         onValueChange = { labor = it },
-                        label = { Text("شغل اليد (اختياري)") },
+                        label = { Text("أجرة اليد (اختياري)") },
                         leadingIcon = { Icon(Icons.Default.Payments, null, tint = BrandYellow) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -270,7 +271,7 @@ fun TemplatesScreen(vm: MainViewModel, pricesHidden: Boolean = false) {
             shape = DialogShape,
             containerColor = MaterialTheme.colorScheme.surface,
             title = { Text("تأكيد الحذف", fontWeight = FontWeight.Bold, color = DangerRed) },
-            text = { Text("متأكد تريد تحذف قالب '${showDeleteConfirm!!.name}'؟") },
+            text = { Text("هل أنت متأكد من رغبتك في حذف قالب '${showDeleteConfirm!!.name}'؟") },
             confirmButton = {
                 Button(
                     onClick = {
@@ -654,7 +655,7 @@ fun TemplateDetailSheet(
             if (localItems.isEmpty()) {
                 EmptyState(
                     icon = Icons.Default.Inventory,
-                    message = "القالب فاضي بعده.. أضف أول قطعة! 📋",
+                    message = "القالب فارغ حالياً.. أضف أول قطعة! 📋",
                     modifier = Modifier.weight(1f)
                 )
             } else {
@@ -980,8 +981,8 @@ fun TemplateDetailSheet(
                     OutlinedTextField(
                         value = editLabor,
                         onValueChange = { editLabor = it },
-                        label = { Text("شغل اليد") },
-                        supportingText = { Text("تنسحب ويا القالب وتضاف لشغل يد البورد، وتكدر تعدلها شوكت ما تحب") },
+                        label = { Text("أجرة اليد") },
+                        supportingText = { Text("تُنسخ مع القالب وتُضاف إلى أجرة يد المشروع، ويمكنك تعديلها متى شئت") },
                         leadingIcon = { Icon(Icons.Default.Payments, null, tint = BrandYellow) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -1267,7 +1268,7 @@ fun AddItemToTemplateSheet(
     if (showManualAdd) {
         TemplateManualItemDialog(
             title = "إضافة قطعة يدوية للقالب",
-            hint = "لن تُضاف إلى المكتبة، تبقى داخل هذا القالب وتُطبّق في البورد كقطعة يدوية.",
+            hint = "لن تُضاف إلى المكتبة، تبقى داخل هذا القالب وتُطبّق في المشروع كقطعة يدوية.",
             initialName = "",
             initialPurchase = 0.0,
             initialSell = 0.0,

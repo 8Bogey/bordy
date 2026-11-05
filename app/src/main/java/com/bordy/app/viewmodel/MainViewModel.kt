@@ -179,10 +179,10 @@ class MainViewModel(private val db: AppDatabase) : ViewModel() {
     }
 
     private suspend fun projectName(projectId: Long): String =
-        db.projectDao().getByIdOnce(projectId)?.customerName?.takeIf { it.isNotBlank() } ?: "بورد محذوف"
+        db.projectDao().getByIdOnce(projectId)?.customerName?.takeIf { it.isNotBlank() } ?: "مشروع محذوف"
 
     private suspend fun supplierName(supplierId: Long): String =
-        db.supplierDao().getByIdOnce(supplierId)?.name?.takeIf { it.isNotBlank() } ?: "مزود محذوف"
+        db.supplierDao().getByIdOnce(supplierId)?.name?.takeIf { it.isNotBlank() } ?: "مورد محذوف"
 
     private suspend fun pieceLabel(variantId: Long?): String {
         if (variantId == null) return "قطعة يدوية"
@@ -212,7 +212,7 @@ class MainViewModel(private val db: AppDatabase) : ViewModel() {
             record(
                 LogCategory.BOARDS, LogAction.ADD, name,
                 buildString {
-                    append("بورد جديد للعميل $name")
+                    append("مشروع جديد للعميل $name")
                     if (defaultLabor > 0.0) append(" · أجور افتراضية ${value(defaultLabor)}")
                 }
             )
@@ -241,8 +241,8 @@ class MainViewModel(private val db: AppDatabase) : ViewModel() {
             withContext(Dispatchers.IO) { BoardMediaStore.deleteProjectFolder(app, p.id) }
             record(
                 LogCategory.BOARDS, LogAction.DELETE, p.customerName,
-                if (p.status != "DONE") "حُذف البورد وأُعيد مخزون قطعه"
-                else "حُذف البورد المكتمل"
+                if (p.status != "DONE") "حُذف المشروع وأُعيد مخزون قطعه"
+                else "حُذف المشروع المكتمل"
             )
         }
     }
@@ -635,7 +635,7 @@ class MainViewModel(private val db: AppDatabase) : ViewModel() {
             val projectId = items.first().projectId
             record(
                 LogCategory.BOARDS, LogAction.REORDER, projectName(projectId),
-                "أُعيد ترتيب قطع البورد",
+                "أُعيد ترتيب قطع المشروع",
                 entityKey = "project-order:$projectId",
                 mergeWindowMs = MergeWindowLongMs
             )
@@ -677,7 +677,7 @@ class MainViewModel(private val db: AppDatabase) : ViewModel() {
             db.supplierDao().delete(s)
             record(
                 LogCategory.SUPPLIERS, LogAction.DELETE, s.name,
-                if (linkedOffers > 0) "حُذف المزود وفُكّت $linkedOffers روابط أسعار" else "حُذف المزود"
+                if (linkedOffers > 0) "حُذف المورد وفُكّت $linkedOffers روابط أسعار" else "حُذف المورد"
             )
         }
     }
@@ -691,8 +691,8 @@ class MainViewModel(private val db: AppDatabase) : ViewModel() {
                 }
             }
             record(
-                LogCategory.SUPPLIERS, LogAction.REORDER, "المزودون",
-                "أُعيد ترتيب قائمة المزودين",
+                LogCategory.SUPPLIERS, LogAction.REORDER, "الموردون",
+                "أُعيد ترتيب قائمة الموردين",
                 entityKey = "supplier-order",
                 mergeWindowMs = MergeWindowLongMs
             )
@@ -806,12 +806,12 @@ class MainViewModel(private val db: AppDatabase) : ViewModel() {
         viewModelScope.launch {
             val inActiveProjects = db.componentDao().countActiveProjectItemsUsingComponent(c.id)
             if (inActiveProjects > 0) {
-                onResult(DeleteOutcome.Blocked("لا يمكن حذف القطعة: مستخدمة في $inActiveProjects بورد غير مكتمل."))
+                onResult(DeleteOutcome.Blocked("لا يمكن حذف القطعة: مستخدمة في $inActiveProjects مشروع غير مكتمل."))
                 return@launch
             }
             val inOffers = db.componentDao().countOffersUsingComponent(c.id)
             if (inOffers > 0) {
-                onResult(DeleteOutcome.Blocked("لا يمكن حذف القطعة: مرتبطة بـ $inOffers عرض مزود."))
+                onResult(DeleteOutcome.Blocked("لا يمكن حذف القطعة: مرتبطة بـ $inOffers عرض مورد."))
                 return@launch
             }
             val templateCount = db.componentDao().countTemplatesUsingComponent(c.id)
@@ -1108,12 +1108,12 @@ class MainViewModel(private val db: AppDatabase) : ViewModel() {
         viewModelScope.launch {
             val inActiveProjects = db.componentDao().countActiveProjectItemsUsingVariant(v.id)
             if (inActiveProjects > 0) {
-                onResult(DeleteOutcome.Blocked("لا يمكن حذف الحجم: مستخدم في $inActiveProjects بورد غير مكتمل."))
+                onResult(DeleteOutcome.Blocked("لا يمكن حذف الحجم: مستخدم في $inActiveProjects مشروع غير مكتمل."))
                 return@launch
             }
             val inOffers = db.componentDao().countOffersUsingVariant(v.id)
             if (inOffers > 0) {
-                onResult(DeleteOutcome.Blocked("لا يمكن حذف الحجم: مرتبط بـ $inOffers عرض من المزودين."))
+                onResult(DeleteOutcome.Blocked("لا يمكن حذف الحجم: مرتبط بـ $inOffers عرض من الموردين."))
                 return@launch
             }
             val templateCount = db.componentDao().countTemplatesUsingVariant(v.id)
@@ -1496,7 +1496,7 @@ class MainViewModel(private val db: AppDatabase) : ViewModel() {
             if (cleanTitle.isEmpty() && cleanBody.isEmpty()) {
                 if (existing != null) {
                     db.noteDao().deleteForProject(note.projectId)
-                    record(LogCategory.BOARDS, LogAction.DELETE, projectName(note.projectId), "حُذفت ملاحظة البورد")
+                    record(LogCategory.BOARDS, LogAction.DELETE, projectName(note.projectId), "حُذفت ملاحظة المشروع")
                 }
             } else {
                 db.noteDao().save(note.copy(title = cleanTitle, body = cleanBody, updatedAt = System.currentTimeMillis()))
@@ -1505,7 +1505,7 @@ class MainViewModel(private val db: AppDatabase) : ViewModel() {
                         LogCategory.BOARDS,
                         if (existing == null) LogAction.ADD else LogAction.EDIT,
                         projectName(note.projectId),
-                        "ملاحظة البورد: ${cleanTitle.ifBlank { cleanBody.take(60) }}"
+                        "ملاحظة المشروع: ${cleanTitle.ifBlank { cleanBody.take(60) }}"
                     )
                 }
             }
@@ -1516,7 +1516,7 @@ class MainViewModel(private val db: AppDatabase) : ViewModel() {
         viewModelScope.launch {
             if (db.noteDao().getForProject(projectId).first() == null) return@launch
             db.noteDao().deleteForProject(projectId)
-            record(LogCategory.BOARDS, LogAction.DELETE, projectName(projectId), "حُذفت ملاحظة البورد")
+            record(LogCategory.BOARDS, LogAction.DELETE, projectName(projectId), "حُذفت ملاحظة المشروع")
         }
     }
 

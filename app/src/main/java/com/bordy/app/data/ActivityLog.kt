@@ -30,10 +30,10 @@ data class ActivityLog(
 
 enum class LogCategory(val label: String) {
     INVENTORY("المخزون"),
-    SUPPLIERS("المزودون"),
-    BOARDS("البوردات"),
+    SUPPLIERS("الموردون"),
+    BOARDS("المشاريع"),
     TEMPLATES("القوالب"),
-    CART("السلة"),
+    CART("سلة المشتريات"),
     SETTINGS("الإعدادات");
 
     companion object {

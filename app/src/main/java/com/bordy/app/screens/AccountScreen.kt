@@ -291,7 +291,7 @@ fun AccountPanel(onClose: () -> Unit) {
         AlertDialog(
             onDismissRequest = { confirmLogout = false },
             title = { Text("تسجيل الخروج") },
-            text = { Text("ستبقى بياناتك على هذا التلفون ويعمل التطبيق بدون نسخ سحابي حتى تسجّل الدخول من جديد.") },
+            text = { Text("ستبقى بياناتك على هذا الهاتف ويعمل التطبيق بدون نسخ سحابي حتى تسجّل الدخول من جديد.") },
             confirmButton = {
                 TextButton(onClick = {
                     confirmLogout = false
