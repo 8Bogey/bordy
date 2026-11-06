@@ -1,10 +1,18 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- خدمة WorkManager في المقدمة (تشغيلات الترخيص المستعجلة) تحتاج النوع والتصريح
+         على targetSdk 34، وإلا يرمي أندرويد 14 InvalidForegroundServiceTypeException.
+         تنزيل التحديث لا يستخدمها إطلاقاً: بلا إشعار وبلا شريط تقدم. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- تثبيت تحديثات APK المُنزَّلة في الخلفية مباشرة من داخل التطبيق -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
     <!-- بلا هذا التصريح يرمي BiometricManager.canAuthenticate استثناءً ويغلق التطبيق -->
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.USE_FINGERPRINT" />
@@ -35,6 +43,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- خدمة WorkManager في المقدمة تحتاج نوعًا مصرّحًا به على targetSdk 34 -->
+        <service
+            android:name="androidx.work.impl.foreground.SystemForegroundService"
+            android:foregroundServiceType="dataSync"
+            tools:node="merge" />
 
         <!-- إضافة الـ FileProvider لمشاركة ملفات PDF -->
         <provider

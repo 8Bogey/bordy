@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import android.provider.Settings
 import com.bordy.app.BuildConfig
+import com.bordy.app.update.UpdateManager
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -57,6 +58,9 @@ object LicenseManager {
     private var syncJob: Job? = null
     private var tickJob: Job? = null
     private var lastAttemptAt = 0L
+
+    /** آخر حالة تنبيه تحديث عولجت (النمط + الطابع) — لا يتكرر التعامل مع كل استطلاع. */
+    private var lastUpdateTrigger: Pair<String, Long>? = null
 
     /**
      * Last verified payload kept in memory so the countdown can move without a network call
@@ -360,6 +364,17 @@ object LicenseManager {
                 )
                 if (LicenseStore.getExpiryNotice(context) != notice) {
                     LicenseStore.saveExpiryNotice(context, notice)
+                }
+            }
+
+            // تنبيه التحديث الفوري: يصل مع كل مزامنة، فلا يُعاد التعامل معه إلا عند تغيّره.
+            resp.trigger?.let { t ->
+                val stamp = t.mode to t.id
+                if (stamp != lastUpdateTrigger) {
+                    lastUpdateTrigger = stamp
+                    UpdateManager.onSyncTrigger(
+                        context, t.mode, t.id, t.message, t.latestVersion
+                    )
                 }
             }
 

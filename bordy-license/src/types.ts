@@ -1,5 +1,10 @@
 export interface Env {
   DB: D1Database;
+  /** R2 releases bucket — optional until the owner enables R2 on the account. */
+  RELEASES?: R2Bucket;
+  /** GitHub Releases hosting for APKs (free, no card) — owner/bordy-releases by default. */
+  GITHUB_TOKEN?: string;
+  GITHUB_REPO?: string;
   LICENSE_PRIVATE_KEY: string;  // PKCS8 base64
   TG_BOT_TOKEN: string;
   TG_WEBHOOK_SECRET: string;

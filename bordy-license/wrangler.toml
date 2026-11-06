@@ -7,5 +7,14 @@ binding = "DB"
 database_name = "bordy-license"
 database_id = "ecb1063b-dd84-4406-90e9-3194ca70d802"
 
+# R2 releases hosting (free tier: 10GB storage, downloads cost nothing).
+# The owner must enable R2 once in the Cloudflare dashboard, then run:
+#   npx wrangler r2 bucket create bordy-releases
+# and uncomment the block below + redeploy. Until then the app uses any
+# https download URL set in the update settings.
+# [[r2_buckets]]
+# binding = "RELEASES"
+# bucket_name = "bordy-releases"
+
 [triggers]
 crons = ["0 5 * * *"]

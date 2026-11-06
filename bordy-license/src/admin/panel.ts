@@ -4,7 +4,11 @@ import { getSettings, setSetting, logEvent } from '../db';
 import { approveOrder, rejectOrder } from '../handlers/orders';
 import { SYNC_INTERVAL_MAX, SYNC_INTERVAL_MIN, clampSyncInterval, clampForegroundSync, clampTrialSeconds, FOREGROUND_SYNC_MIN, FOREGROUND_SYNC_MAX, TRIAL_MIN_SECONDS, TRIAL_MAX_SECONDS, clampExpiryNoticeUnit, clampExpiryNoticeValue, expiryNoticeEnabled, EXPIRY_NOTICE_UNITS } from '../handlers/config';
 import { formatBaghdadTime, normalizeCode, parseJsonBody, parsePaymentMethods } from '../utils';
+import { normalizeVersionInput, canonicalVersion, isValidVersion } from '../version';
 import { handleAdminAccountsApi } from './accounts';
+import {
+  apiUpdateStatus, apiUploadRelease, apiDeleteRelease, apiUpdateReleaseSettings,
+} from './releases';
 
 /**
  * Handle all /admin/* routes.
@@ -112,6 +116,22 @@ export async function handleAdminPanel(request: Request, env: Env): Promise<Resp
 
   if (path === '/admin/api/settings' && request.method === 'POST') {
     return apiUpdateSettings(request, env);
+  }
+
+  if (path === '/admin/api/update' && request.method === 'GET') {
+    return apiUpdateStatus(request, env);
+  }
+
+  if (path === '/admin/api/update/settings' && request.method === 'POST') {
+    return apiUpdateReleaseSettings(request, env);
+  }
+
+  if (path === '/admin/api/releases' && request.method === 'POST') {
+    return apiUploadRelease(request, env);
+  }
+
+  if (path === '/admin/api/releases/delete' && request.method === 'POST') {
+    return apiDeleteRelease(request, env);
   }
 
   if (path === '/admin/api/export') {
@@ -317,6 +337,7 @@ button,.btn{padding:.5rem 1rem;border:none;border-radius:6px;cursor:pointer;font
     <div class="tab" data-tab="codes">🏷️ الأكواد</div>
     <div class="tab" data-tab="events">📜 السجل</div>
     <div class="tab" data-tab="settings">⚙️ الإعدادات</div>
+    <div class="tab" data-tab="update">🚀 التحديثات</div>
   </div>
 
   <!-- Devices Panel -->
@@ -479,11 +500,6 @@ button,.btn{padding:.5rem 1rem;border:none;border-radius:6px;cursor:pointer;font
           <input type="number" id="set-grace" min="0" max="60" value="${parseInt(settings.grace_days || '2', 10)}">
           <small style="color:#94a3b8">فترة يبقى فيها التطبيق يعمل بعد انتهاء الاشتراك أو التجربة. 0 = يتوقف فوراً عند الانتهاء بلا فترة سماح.</small>
         </div>
-        <div class="form-group">
-          <label>أقل إصدار مسموح للتطبيق</label>
-          <input type="text" inputmode="decimal" id="set-minv" value="${escapeHtml(settings.min_app_version || '1')}" placeholder="1.0">
-          <small style="color:#94a3b8">يقبل الكسور العشرية مثل 1.0 أو 1.2، ويُقارَن بنسخة التطبيق الظاهرة.</small>
-        </div>
       </div>
       <h3 style="margin:1.5rem 0 1rem;color:#60a5fa">💳 الدفع والدعم <span class="section-num">3</span></h3>
       <div class="form-group">
@@ -629,6 +645,110 @@ button,.btn{padding:.5rem 1rem;border:none;border-radius:6px;cursor:pointer;font
     </div>
     <p style="color:#94a3b8;font-size:.8rem;margin-top:.75rem">حذف مشترك معيّن متاح من تبويب «المشتركين» — يحذف بياناته وطلباته وسجله ليعود كجهاز جديد.</p>
   </div>
+</div>
+
+<!-- Update Panel -->
+<div class="panel" id="tab-update">
+  <h3 style="margin-bottom:1rem;color:#60a5fa">🚀 إصدار التطبيق والتحديثات الإجبارية</h3>
+  <div class="form-grid">
+    <div class="form-group">
+      <label>أقل إصدار مسموح به</label>
+      <input type="text" inputmode="decimal" id="upd-minv" placeholder="1.0">
+      <small style="color:#94a3b8">المقترح حالياً: <b>1.0</b> — أي جهاز بنسخة أقدم يتوقف فوراً ويطلب التحديث. يقبل 1.0 و 2.1 والأرقام العربية ١.٠. اجعله مثلاً 1.1 لإجبار كل من هو على 1.0 بالتحديث.</small>
+    </div>
+    <div class="form-group">
+      <label>أحدث إصدار (الذي يُثبَّت على الأجهزة)</label>
+      <input type="text" inputmode="decimal" id="upd-latest" placeholder="1.0">
+      <small style="color:#94a3b8">المقترح: يطابق أقل إصدار مسموح. إذا جعلته <b>أقدم</b> من نسخة بعض المستخدمين (مثلاً رجّعته إلى 1.0 بعد مشكلة في 1.1) فسيُطلب منهم الرجوع للنسخة الأقدم — بياناتهم محفوظة سحابياً ويستعيدونها بعد إعادة التثبيت.</small>
+    </div>
+    <div class="form-group">
+      <label>فترة التحقق من التحديثات</label>
+      <div class="flex" style="gap:.5rem">
+        <input type="number" id="upd-check-value" min="5" step="1" style="flex:1">
+        <select id="upd-check-unit" style="max-width:130px">
+          <option value="hours">ساعة</option>
+          <option value="minutes">دقيقة</option>
+          <option value="seconds">ثانية</option>
+        </select>
+      </div>
+      <small style="color:#94a3b8">المقترح: <b>12 ساعة</b> — يكتشف التحديث خلال ساعات باستهلاك شبه معدوم. الحد الأدنى <b>5</b>. الدقائق والثوانٍ القليلة للاختبار فقط: الفحص المتكرر يستهلك البطارية وباقة البيانات، وأندرويد قد يؤجّل الفحص في وضع توفير الطاقة.</small>
+    </div>
+    <div class="form-group">
+      <label>التنزيل التلقائي في الخلفية</label>
+      <div class="switch-row">
+        <div>
+          <div class="switch-title">التنزيل عبر Wi‑Fi فقط</div>
+          <div class="switch-desc">عند الإجبار بتحديث، يُحمَّل ملف التثبيت في الخلفية بدون استهلاك باقة الإنترنت.</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="upd-wifi" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+      <small style="color:#94a3b8">المقترح: <b>مفعّل</b> — يحمي باقة المشترك. عطّله مؤقتاً فقط لو أردت وصول التحديث الإجباري لمن لا يملك Wi‑Fi (سيستهلك من باقتهم).</small>
+    </div>
+  </div>
+  <div class="form-group">
+    <label>ملاحظات تظهر للمشترك في شاشة التحديث (اختياري)</label>
+    <input type="text" id="upd-notes" maxlength="300" placeholder="مثال: تحديث مهم يصلح مشكلة الفواتير">
+    <small style="color:#94a3b8">المقترح: جملة قصيرة واحدة توضّح سبب التحديث — تزيد نسبة التثبيت الفوري.</small>
+  </div>
+  <button type="button" class="btn btn-primary" onclick="saveUpdateSettings()">💾 حفظ إعدادات التحديث</button>
+
+  <hr style="border-color:#334155;margin:2rem 0">
+  <h3 style="margin-bottom:.5rem;color:#fbbf24">📣 تنبيه فوري بالتحديث (Trigger)</h3>
+  <p style="color:#94a3b8;font-size:.85rem;margin-bottom:1rem">
+    زرّ واحد يحفّز المشتركين على التحديث فوراً بدل انتظار الفحص الدوري: من يترك التطبيق مفتوحاً يراه خلال ثوانٍ، ومن يفتحه بعد ذلك يراه لحظة فتحه.
+    <b>لا يُلغي هذا الزر الفحص الدوري المجدول ولا يُغيّر فترته</b> — يبقى يعمل كخطة احتياطية للأجهزة المغلقة.
+  </p>
+  <div class="form-grid">
+    <div class="form-group">
+      <label>نوع التنبيه عند الإطلاق</label>
+      <select id="upd-trig-mode">
+        <option value="optional">اختياري — نافذة «تحديث الآن / لاحقاً» لا تمنع العمل</option>
+        <option value="forced">إجباري — شاشة حاجزة حتى يتم التحديث</option>
+      </select>
+      <small style="color:#94a3b8">المقترح عادةً: <b>اختياري</b> — يرفع نسبة التحديث بلا توتير. اجعله <b>إجباري</b> عند خطأ خطير أو ثغرة. لن يظهر أي تنبيه لمن هو على أحدث إصدار بالفعل، ولا لمن هو محجوب أصلاً بـ «أقل إصدار مسموح» (ذاك شاشة تحديث إجباري دائمة).</small>
+    </div>
+    <div class="form-group">
+      <label>رسالة التنبيه (اختياري)</label>
+      <input type="text" id="upd-trig-msg" maxlength="200" placeholder="مثال: تحديث يهم دقة حساباتك — ثبّته الآن">
+      <small style="color:#94a3b8">جملة قصيرة تُعرض فوق زر التحديث مباشرة داخل التطبيق.</small>
+    </div>
+  </div>
+  <div class="flex" style="gap:.5rem;flex-wrap:wrap">
+    <button type="button" class="btn btn-warning" onclick="fireUpdateTrigger()">📣 أطلق التنبيه الآن</button>
+    <button type="button" class="btn btn-secondary" onclick="stopUpdateTrigger()">⏹ إيقاف التنبيه</button>
+  </div>
+  <p id="upd-trig-state" style="margin-top:.75rem;font-size:.85rem;color:#94a3b8"></p>
+  <p style="color:#94a3b8;font-size:.8rem;margin-top:.5rem">ملاحظة: لا يوجد إشعار push يصل الجهاز وهو مغلق — ذاك يحتاج Firebase (خارج نطاق الاستضافة المجانية الحالية). التنبيه يصل كل جهاز عند أول اتصال له بالخادم: فوراً إن كان التطبيق مفتوحاً، أو لحظة فتحه.</p>
+
+  <hr style="border-color:#334155;margin:2rem 0">
+  <h3 style="margin-bottom:.5rem;color:#60a5fa">📦 رفع نسخة جديدة (APK)</h3>
+  <p style="color:#94a3b8;font-size:.85rem;margin-bottom:1rem">ارفع ملف APK هنا — يُخزَّن مجاناً (GitHub Releases افتراضياً، أو R2 إن فعّلته) ويصبح هو «أحدث إصدار» تلقائياً. لا تنسَ رفع versionCode أعلى في كل نسخة جديدة.</p>
+  <div class="form-grid">
+    <div class="form-group">
+      <label>ملف APK (بحد أقصى 100MB)</label>
+      <input type="file" id="upd-file" accept=".apk,application/vnd.android.package-archive" style="background:#0f172a;border:1px solid #334155;color:#e2e8f0;padding:.5rem;border-radius:6px;width:100%">
+    </div>
+    <div class="form-group">
+      <label>رقم إصدار هذه النسخة</label>
+      <input type="text" inputmode="decimal" id="upd-file-ver" placeholder="مثال: 1.1">
+      <small style="color:#94a3b8">يجب أن يطابق versionName داخل الـ APK، وأن يكون أعلى من أقل إصدار مسموح ليُقبل التثبيت.</small>
+    </div>
+  </div>
+  <button type="button" class="btn btn-success" onclick="uploadRelease()">⬆️ رفع وتعيين كأحدث إصدار</button>
+  <p id="upd-msg" style="margin-top:.75rem;font-size:.85rem;min-height:1.2rem"></p>
+
+  <div class="form-group" style="margin-top:1rem">
+    <label>رابط تنزيل يدوي (بديل للرفع — اختياري)</label>
+    <input type="text" id="upd-url" dir="ltr" placeholder="https://github.com/.../bordy-1.1.apk">
+    <small style="color:#94a3b8">إن رفعت الملف يدوياً إلى GitHub Releases أو أي استضافة، الصق الرابط المباشر هنا ثم اضبط «أحدث إصدار» أعلاه. يُحفظ مع زر «حفظ إعدادات التحديث».</small>
+  </div>
+
+  <hr style="border-color:#334155;margin:2rem 0">
+  <h3 style="margin-bottom:.5rem;color:#60a5fa">🗂️ النسخ المرفوعة</h3>
+  <div id="upd-releases" style="margin-top:.75rem"></div>
 </div>
 
 <!-- Code Modal -->
@@ -797,6 +917,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     if (tab.dataset.tab === 'orders') loadOrders();
     if (tab.dataset.tab === 'codes') loadCodes();
     if (tab.dataset.tab === 'events') searchEvents();
+    if (tab.dataset.tab === 'update') loadUpdatePanel();
   });
 });
 
@@ -1502,14 +1623,12 @@ async function saveSettings(e) {
     trial_seconds: trialSeconds,
     paid_token_ttl_days: document.getElementById('set-ttl').value,
     grace_days: document.getElementById('set-grace').value,
-    min_app_version: document.getElementById('set-minv').value.trim(),
     bot_notifications_enabled: document.getElementById('set-bot').checked ? '1' : '0',
     expiry_notice_enabled: document.getElementById('set-notice-enabled').checked ? '1' : '0',
     expiry_notice_unit: document.getElementById('set-notice-unit').value,
     expiry_notice_value: document.getElementById('set-notice-value').value,
   };
   if (!paymentMethodsData.length) { alert('أضف طريقة دفع واحدة على الأقل قبل الحفظ'); return; }
-  if (!/^\d+(\.\d+){0,3}$/.test(body.min_app_version)) { alert('أقل إصدار غير صالح — استخدم صيغة مثل 1.0'); return; }
   const res = await api('settings', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
   if (!res.ok) { alert('تعذر الحفظ: ' + (res.error || 'خطأ غير معروف')); return; }
   alert('تم الحفظ — ستظهر التغييرات في التطبيق خلال ثوانٍ');
@@ -1530,6 +1649,168 @@ function refreshNoticePreview() {
 document.addEventListener('input', (ev) => {
   if (ev.target && (ev.target.id === 'set-notice-value' || ev.target.id === 'set-notice-unit')) refreshNoticePreview();
 });
+
+// Update panel — Arabic-Indic digits and ٫ are normalized so "١.٠" works like "1.0".
+function normalizeVersionInput(v) {
+  return String(v || '')
+    .replace(/[٠-٩]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x0660 + 0x30))
+    .replace(/[۰-۹]/g, c => String.fromCharCode(c.charCodeAt(0) - 0x06F0 + 0x30))
+    .replace(/[٫,]/g, '.')
+    .trim();
+}
+const VERSION_RE = /^\\d+(\\.\\d+){0,3}$/;
+let updateData = null;
+
+function fmtUploadDate(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '-';
+  return d.getUTCFullYear() + '-' + String(d.getUTCMonth()+1).padStart(2,'0') + '-' + String(d.getUTCDate()).padStart(2,'0')
+    + ' ' + String(d.getUTCHours()).padStart(2,'0') + ':' + String(d.getUTCMinutes()).padStart(2,'0');
+}
+
+async function loadUpdatePanel() {
+  const data = await api('update');
+  const msg = document.getElementById('upd-msg');
+  if (!data.ok) { msg.textContent = data.error || 'تعذر تحميل بيانات التحديث'; return; }
+  updateData = data;
+  const msgBox = document.getElementById('upd-msg');
+  if (msgBox && !msgBox.textContent) {
+    msgBox.style.color = data.storage === 'none' ? '#fcd34d' : '#6ee7b7';
+    msgBox.textContent = data.storage_message || '';
+  }
+  document.getElementById('upd-minv').value = data.settings.min_app_version || '1.0';
+  document.getElementById('upd-latest').value = data.settings.latest_app_version || '';
+  document.getElementById('upd-check-unit').value = data.settings.update_check_unit || 'hours';
+  document.getElementById('upd-check-value').value = data.settings.update_check_value || '12';
+  const wifi = data.settings.update_wifi_only;
+  document.getElementById('upd-wifi').checked = wifi !== '0' && wifi !== 'off';
+  document.getElementById('upd-notes').value = data.settings.update_notes || '';
+  document.getElementById('upd-url').value = data.settings.update_download_url || '';
+  document.getElementById('upd-trig-mode').value = data.settings.update_trigger_mode === 'off' ? 'optional' : (data.settings.update_trigger_mode || 'optional');
+  document.getElementById('upd-trig-msg').value = data.settings.update_trigger_message || '';
+  renderTriggerState(data.settings);
+  renderReleases(data.releases || [], data.settings.update_file || '');
+}
+
+function renderTriggerState(s) {
+  const box = document.getElementById('upd-trig-state');
+  if (!box) return;
+  const mode = s.update_trigger_mode || 'off';
+  if (mode === 'off') {
+    box.style.color = '#94a3b8';
+    box.textContent = 'الحالة: لا يوجد تنبيه معلّق. اضبط النوع والرسالة ثم اضغط «أطلق التنبيه الآن».';
+    return;
+  }
+  const id = parseInt(s.update_trigger_id || '0', 10);
+  const fired = id > 0 ? fmtUploadDate(new Date(id).toISOString()) : '-';
+  box.style.color = mode === 'forced' ? '#fca5a5' : '#6ee7b7';
+  box.textContent = 'الحالة: تنبيه ' + (mode === 'forced' ? 'إجباري' : 'اختياري') + ' معلَن منذ ' + fired
+    + ' — يصل لكل جهاز يتصل بالخادم، والفحص الدوري باقٍ كما ضبطته.';
+}
+
+function renderReleases(releases, currentKey) {
+  const box = document.getElementById('upd-releases');
+  if (!releases.length) {
+    box.innerHTML = '<div style="color:#94a3b8;font-size:.85rem">لا توجد نسخ مرفوعة بعد — ارفع أول APK بالأسفل.</div>';
+    return;
+  }
+  box.innerHTML = '<div class="table-wrap"><table><thead><tr><th>الملف</th><th>الحجم</th><th>تاريخ الرفع</th><th>الحالة</th><th></th></tr></thead><tbody>'
+    + releases.map(r => {
+      const live = r.key === currentKey;
+      const label = r.name || r.key.replace('releases/', '');
+      return '<tr><td style="font-family:monospace" dir="ltr">' + esc(label) + '</td>'
+        + '<td>' + (Math.round(r.size / 1024 / 1024 * 10) / 10) + ' MB</td>'
+        + '<td>' + esc(fmtUploadDate(r.uploaded)) + '</td>'
+        + '<td>' + (live ? '<span class="badge green">النسخة الحالية</span>' : '<span class="badge blue">احتياطي</span>') + '</td>'
+        + '<td><button type="button" class="btn btn-danger" style="font-size:.75rem" onclick="deleteRelease(\\'' + esc(r.key) + '\\')">حذف</button></td></tr>';
+    }).join('') + '</tbody></table></div>';
+}
+
+async function saveUpdateSettings() {
+  const minv = normalizeVersionInput(document.getElementById('upd-minv').value);
+  const latest = normalizeVersionInput(document.getElementById('upd-latest').value);
+  if (!VERSION_RE.test(minv)) { alert('أقل إصدار غير صالح — استخدم صيغة مثل 1.0'); return; }
+  if (!VERSION_RE.test(latest)) { alert('أحدث إصدار غير صالح — استخدم صيغة مثل 1.1'); return; }
+  const checkValue = parseInt(document.getElementById('upd-check-value').value, 10);
+  const checkUnit = document.getElementById('upd-check-unit').value;
+  if (!Number.isFinite(checkValue) || checkValue < 5) {
+    alert('فترة التحقق 5 على الأقل (5 ثوانٍ / 5 دقائق / 5 ساعات)'); return;
+  }
+  const res = await api('update/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      min_app_version: minv,
+      latest_app_version: latest,
+      update_check_unit: checkUnit,
+      update_check_value: checkValue,
+      update_wifi_only: document.getElementById('upd-wifi').checked ? '1' : '0',
+      update_notes: document.getElementById('upd-notes').value,
+      update_download_url: document.getElementById('upd-url').value.trim()
+    })
+  });
+  if (!res.ok) { alert(res.error || 'تعذر الحفظ'); return; }
+  alert('تم الحفظ — يطبَّق على أجهزة المشتركين عند تحققهم التالي');
+}
+
+async function postTrigger(mode) {
+  const message = document.getElementById('upd-trig-msg').value;
+  const res = await api('update/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ trigger: { mode, message } })
+  });
+  if (!res.ok) { alert(res.error || 'تعذر تنفيذ التنبيه'); return false; }
+  return true;
+}
+
+async function fireUpdateTrigger() {
+  const mode = document.getElementById('upd-trig-mode').value;
+  if (mode !== 'forced' && !confirm('سيُطلب من كل مشترك متأخر التحديث كخيار اختياري. متابعة؟')) return;
+  if (mode === 'forced' && !confirm('سيُمنع كل مشترك متأخر من استخدام التطبيق حتى يحدّث. متابعة؟')) return;
+  if (!await postTrigger(mode)) return;
+  await loadUpdatePanel();
+  alert('أُطلق التنبيه ✓ — يظهر فوراً لمن التطبيق مفتوح لديه، ولغيره عند أول فتح أو فحص دوري.');
+}
+
+async function stopUpdateTrigger() {
+  if (!await postTrigger('off')) return;
+  await loadUpdatePanel();
+}
+
+async function uploadRelease() {
+  const fileInput = document.getElementById('upd-file');
+  const file = fileInput.files && fileInput.files[0];
+  const version = normalizeVersionInput(document.getElementById('upd-file-ver').value);
+  const msg = document.getElementById('upd-msg');
+  if (!file) { alert('اختر ملف APK أولاً'); return; }
+  if (!VERSION_RE.test(version)) { alert('رقم الإصدار غير صالح — مثال: 1.1'); return; }
+  const maxBytes = updateData ? updateData.max_apk_mb * 1024 * 1024 : 100 * 1024 * 1024;
+  if (file.size > maxBytes) { alert('حجم الملف ' + Math.round(file.size/1024/1024) + 'MB — الحد الأقصى ' + (maxBytes/1024/1024) + 'MB'); return; }
+  const fd = new FormData();
+  fd.append('version', version);
+  fd.append('apk', file);
+  msg.style.color = '#94a3b8';
+  msg.textContent = 'جاري الرفع… لا تغلق الصفحة حتى يكتمل (' + Math.round(file.size/1024/1024) + 'MB)';
+  const res = await api('releases', { method: 'POST', body: fd });
+  if (!res.ok) { msg.style.color = '#fca5a5'; msg.textContent = res.error || 'فشل الرفع'; return; }
+  msg.style.color = '#6ee7b7';
+  msg.textContent = 'تم الرفع والتعيين كأحدث إصدار ✓ — سيُحمَّل تلقائياً لدى المشتركين المجبَرين على التحديث';
+  fileInput.value = '';
+  document.getElementById('upd-file-ver').value = '';
+  loadUpdatePanel();
+}
+
+async function deleteRelease(key) {
+  if (!confirm('حذف الملف ' + key + ' نهائياً؟')) return;
+  const res = await api('releases/delete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key })
+  });
+  if (!res.ok) { alert(res.error || 'تعذر الحذف'); return; }
+  loadUpdatePanel();
+}
 
 async function exportCSV() {
   const data = await api('export');
@@ -2142,8 +2423,8 @@ async function apiUpdateSettings(request: Request, env: Env): Promise<Response> 
     staged.set('grace_days', String(value));
   }
   if (body.min_app_version !== undefined) {
-    const value = String(body.min_app_version).trim();
-    if (!/^\d+(\.\d+){0,3}$/.test(value)) {
+    const value = canonicalVersion(normalizeVersionInput(String(body.min_app_version)));
+    if (!isValidVersion(value)) {
       return Response.json({ ok: false, error: 'أقل إصدار غير صالح — استخدم صيغة مثل 1.0 أو 1.2' }, { status: 400 });
     }
     staged.set('min_app_version', value);

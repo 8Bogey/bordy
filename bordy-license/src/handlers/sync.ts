@@ -3,6 +3,7 @@ import { getDevice, getSettings } from '../db';
 import { getPrivateKey, signToken } from '../crypto';
 import { buildTokenPayload } from './activate';
 import { loadRemoteConfig } from './config';
+import { loadUpdateTrigger, triggerPayload } from '../update-config';
 import { base64urlDecode, errorResponse, isValidDeviceId, jsonResponse } from '../utils';
 
 /** A device polling faster than this is either buggy or abusive — answer cheaply. */
@@ -69,13 +70,14 @@ export async function handleSync(request: Request, env: Env): Promise<Response> 
     return jsonResponse({ ok: false, code: 'RATE_LIMITED', retry_after_ms: retryAfterMs }, 429);
   }
 
-  const [device, settings, config] = await Promise.all([
+  const [device, settings, config, updateTrigger] = await Promise.all([
     getDevice(env.DB, did),
     getSettings(env.DB, [
       'paid_token_ttl_days', 'grace_days', 'min_app_version',
       'maintenance', 'tos_version',
     ]),
     loadRemoteConfig(env, now),
+    loadUpdateTrigger(env),
   ]);
 
   if (settings.maintenance === 'on') {
@@ -156,5 +158,7 @@ export async function handleSync(request: Request, env: Env): Promise<Response> 
     sync_interval_seconds: config.syncIntervalSeconds,
     foreground_sync_seconds: config.foregroundSyncSeconds,
     expiry_notice: config.expiryNotice,
+    // التنبيه الفوري يصل هنا فيستجيب التطبيق خلال ثوانٍ بدل انتظار الفحص الدوري.
+    update_trigger: triggerPayload(updateTrigger),
   });
 }

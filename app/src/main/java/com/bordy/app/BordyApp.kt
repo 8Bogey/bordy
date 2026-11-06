@@ -6,6 +6,8 @@ import com.bordy.app.license.LicenseManager
 import com.bordy.app.license.NetworkWatcher
 import com.bordy.app.sync.SyncEngine
 import com.bordy.app.sync.SyncScheduler
+import com.bordy.app.update.UpdateManager
+import com.bordy.app.update.UpdateScheduler
 import io.sentry.android.core.SentryAndroid
 
 class BordyApp : Application() {
@@ -19,6 +21,8 @@ class BordyApp : Application() {
         NetworkWatcher.start(this)
         SyncEngine.init(this)
         SyncScheduler.start(this)
+        UpdateManager.init(this)
+        UpdateScheduler.ensurePeriodic(this)
     }
 
     // لا بيانات شخصية ولا تتبّع أداء؛ يُفعَّل فقط عند وجود DSN

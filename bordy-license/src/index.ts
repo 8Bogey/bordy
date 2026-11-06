@@ -12,6 +12,7 @@ import { handleTelegramWebhook } from './telegram';
 import { handleAdminPanel } from './admin/panel';
 import { handleScheduled } from './cron';
 import { handleAccountRoute } from './account/router';
+import { handleDownloadRelease } from './admin/releases';
 import { errorResponse } from './utils';
 
 export default {
@@ -70,6 +71,12 @@ export default {
       // Update check
       if (method === 'GET' && path === '/v1/update') {
         return handleGetUpdate(request, env);
+      }
+
+      // Public release download (free R2 egress)
+      const dlMatch = path.match(/^\/dl\/(releases\/.+)$/);
+      if (method === 'GET' && dlMatch) {
+        return handleDownloadRelease(dlMatch[1], env);
       }
 
       // Code check

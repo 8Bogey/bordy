@@ -28,6 +28,12 @@ import com.bordy.app.screens.AccountGate
 import com.bordy.app.screens.RootNavigation
 import com.bordy.app.sync.SyncEngine
 import com.bordy.app.ui.theme.BordyTheme
+import com.bordy.app.update.UpdateGateScreen
+import com.bordy.app.update.UpdateManager
+import com.bordy.app.update.UpdatePromptView
+import com.bordy.app.update.UpdateStore
+import com.bordy.app.update.RollbackScreen
+import com.bordy.app.update.UpdateUi
 import com.bordy.app.utils.BrandGreen
 import com.bordy.app.utils.DangerRed
 import com.bordy.app.viewmodel.MainViewModel
@@ -47,6 +53,7 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         LicenseManager.checkAndRefresh(applicationContext)
+        UpdateManager.onAppForeground(applicationContext)
     }
 
     override fun onStart() {
@@ -73,10 +80,48 @@ fun MainAppRoot() {
         db.settingsDao().getOnce()?.let { dark = it.isDarkMode }
     }
 
-    BordyTheme(darkTheme = dark) {
-        val licenseState by LicenseManager.state.collectAsState()
+        BordyTheme(darkTheme = dark) {
+            val licenseState by LicenseManager.state.collectAsState()
+            val updateState by UpdateManager.state.collectAsState()
+            val updatePrompt by UpdateManager.prompt.collectAsState()
 
-        when (val state = licenseState) {
+            // بوابة التحديث لها أولوية قصوى: إصدار أقدم من الحد الأدنى أو رجوع مفروض
+            // يحجبان التطبيق كله — بزر تثبيت واحد لأن الملف مُحمَّل مسبقاً في الخفاء.
+            when (val u = updateState) {
+                is UpdateUi.Forced -> UpdateGateScreen(u.version, u.message, u.apk)
+                is UpdateUi.RollbackRequired -> RollbackScreen(u)
+                UpdateUi.None -> {
+                    val prompt = updatePrompt
+                    if (prompt != null && prompt.forced) {
+                        // تنبيه إجباري من الإدارة: شاشة حاجزة حتى يتم التحديث.
+                        UpdatePromptView(prompt) { }
+                    } else {
+                        MainContent(
+                            dark = dark,
+                            showManualPaywall = showManualPaywall,
+                            onShowManualPaywall = { showManualPaywall = it },
+                            onDarkChange = { dark = it }
+                        )
+                        // تنبيه اختياري: نافذة فوق العمل لا تمنع أحداً.
+                        if (prompt != null) UpdatePromptView(prompt) { UpdateManager.dismissPrompt() }
+                    }
+                }
+            }
+        }
+}
+
+@Composable
+private fun MainContent(
+    dark: Boolean,
+    showManualPaywall: Boolean,
+    onShowManualPaywall: (Boolean) -> Unit,
+    onDarkChange: (Boolean) -> Unit,
+) {
+    val ctx = LocalContext.current
+    val db = remember { AppDatabase.get(ctx) }
+    val licenseState by LicenseManager.state.collectAsState()
+
+    when (val state = licenseState) {
             is LicenseState.Loading -> {
                 Box(
                     modifier = Modifier
@@ -103,14 +148,20 @@ fun MainAppRoot() {
                 ClockTamperScreen()
             }
             is LicenseState.NeedUpdate -> {
-                UpdateRequiredScreen(minVersion = state.minVersion)
+                // الخادم يفرض إصداراً أحدث — نفس شاشة بوابة التحديث (الملف في الخفاء)
+                val ctx = LocalContext.current.applicationContext
+                UpdateGateScreen(
+                    version = state.minVersion,
+                    message = "يجب تحديث التطبيق إلى الإصدار ${state.minVersion} لمتابعة العمل.",
+                    apk = UpdateStore.readyApk(ctx, state.minVersion),
+                )
             }
             else -> {
                 // Active, Trial, or Grace -> Normal app experience
                 if (showManualPaywall) {
-                    androidx.activity.compose.BackHandler { showManualPaywall = false }
+                    androidx.activity.compose.BackHandler { onShowManualPaywall(false) }
                     Box(modifier = Modifier.fillMaxSize()) {
-                        PaywallScreen(onClose = { showManualPaywall = false })
+                        PaywallScreen(onClose = { onShowManualPaywall(false) })
                     }
                 } else {
                     val vm: MainViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
@@ -119,16 +170,15 @@ fun MainAppRoot() {
                     Column(modifier = Modifier.fillMaxSize()) {
                         LicenseBanner(
                             state = state,
-                            onRenewClick = { showManualPaywall = true }
+                            onRenewClick = { onShowManualPaywall(true) }
                         )
                         AccountGate {
-                            RootNavigation(vm = vm, darkOnChange = { newVal -> dark = newVal })
+                            RootNavigation(vm = vm, darkOnChange = onDarkChange)
                         }
                     }
                 }
             }
         }
-    }
 }
 
 @Composable
@@ -198,32 +248,6 @@ fun ClockTamperScreen() {
             ) {
                 Text("تحقق الآن")
             }
-        }
-    }
-}
-
-@Composable
-fun UpdateRequiredScreen(minVersion: String) {
-    Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            Text(
-                text = "تحديث جديد لتطبيق بوردي 🚀",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = BrandGreen
-            )
-            Spacer(Modifier.height(16.dp))
-            Text(
-                text = "لمتابعة عملك دون مشكلات، يجب تحديث التطبيق إلى الإصدار الجديد ($minVersion).",
-                style = MaterialTheme.typography.bodyLarge,
-                textAlign = TextAlign.Center
-            )
         }
     }
 }

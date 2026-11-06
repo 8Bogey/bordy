@@ -99,7 +99,19 @@ data class SyncResponse(
     val orderId: String?,
     val orderStatus: String,
     val rejectReason: String?,
-    val orderExpiresAt: Long
+    val orderExpiresAt: Long,
+    val trigger: UpdateTriggerInfo?
+)
+
+/**
+ * تنبيه فوري يطلقه المالك من اللوحة ويصل مع مزامنة الترخيص، فيستجيب التطبيق
+ * خلال ثوانٍ بدل انتظار الفحص الدوري. mode: off / optional / forced.
+ */
+data class UpdateTriggerInfo(
+    val mode: String,
+    val id: Long,
+    val message: String,
+    val latestVersion: String
 )
 
 /**
@@ -359,6 +371,7 @@ object LicenseApi {
 
     private fun parseSync(json: JSONObject): SyncResponse {
         val order = json.optJSONObject("order")
+        val trigger = json.optJSONObject("update_trigger")
         return SyncResponse(
             ok = json.optBoolean("ok", false),
             errorCode = errorCodeOf(json),
@@ -369,7 +382,15 @@ object LicenseApi {
             orderId = order?.optNullableString("id"),
             orderStatus = order?.optString("status", "") ?: "",
             rejectReason = order?.optNullableString("reject_reason"),
-            orderExpiresAt = order?.optLong("expires_at", 0L) ?: 0L
+            orderExpiresAt = order?.optLong("expires_at", 0L) ?: 0L,
+            trigger = trigger?.let {
+                UpdateTriggerInfo(
+                    mode = it.optString("mode", "off"),
+                    id = it.optLong("id", 0L),
+                    message = it.optString("message", ""),
+                    latestVersion = it.optNullableString("latest_version") ?: ""
+                )
+            }
         )
     }
 
