@@ -45,8 +45,8 @@ android {
         applicationId = "com.bordy.app"
         minSdk = 30
         targetSdk = 34
-        versionCode = 15
-        versionName = "1.7"
+        versionCode = 16
+        versionName = "1.8"
 
         buildConfigField("String", "API_BASE_URL", "\"https://bordy-license.bordy-license.workers.dev\"")
         buildConfigField("String", "API_FALLBACK_URL", "\"https://bordy-license.bordy-license.workers.dev\"")
