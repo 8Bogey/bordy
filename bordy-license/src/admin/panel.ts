@@ -636,7 +636,7 @@ button,.btn{padding:.5rem 1rem;border:none;border-radius:6px;cursor:pointer;font
           const file = input.files && input.files[0];
           input.value = '';
           if (!file) return;
-          if (!/^image\//.test(file.type || '')) { pmError('اختر ملف صورة (PNG أو JPG)'); return; }
+          if (!file.type.startsWith('image/')) { pmError('اختر ملف صورة (PNG أو JPG)'); return; }
           const img = new Image();
           img.onload = function () {
             URL.revokeObjectURL(img.src);
