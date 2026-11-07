@@ -710,10 +710,18 @@ button,.btn{padding:.5rem 1rem;border:none;border-radius:6px;cursor:pointer;font
           }
         }
 
-        function deletePaymentMethod(index) {
-          if (!confirm('حذف طريقة الدفع «' + paymentMethodsData[index].name + '»؟')) return;
+        async function deletePaymentMethod(index) {
+          const m = paymentMethodsData[index];
+          if (!confirm('حذف طريقة الدفع «' + m.name + '»؟')) return;
           paymentMethodsData.splice(index, 1);
           renderPaymentMethods();
+          if (m.id && m.has_logo) {
+            const res = await api('payment-logo', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: m.id, logo_data: '' })
+            });
+            if (!res.ok) alert(res.error || 'تعذر حذف صورة الطريقة المحذوفة');
+          }
         }
 
         renderPaymentMethods();
