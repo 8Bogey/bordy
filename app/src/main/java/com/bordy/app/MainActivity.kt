@@ -148,37 +148,53 @@ private fun MainContent(
                 ClockTamperScreen()
             }
             is LicenseState.NeedUpdate -> {
-                // الخادم يفرض إصداراً أحدث — نفس شاشة بوابة التحديث (الملف في الخفاء)
-                val ctx = LocalContext.current.applicationContext
-                UpdateGateScreen(
-                    version = state.minVersion,
-                    message = "يجب تحديث التطبيق إلى الإصدار ${state.minVersion} لمتابعة العمل.",
-                    apk = UpdateStore.readyApk(ctx, state.minVersion),
-                )
-            }
-            else -> {
-                // Active, Trial, or Grace -> Normal app experience
-                if (showManualPaywall) {
-                    androidx.activity.compose.BackHandler { onShowManualPaywall(false) }
-                    Box(modifier = Modifier.fillMaxSize()) {
-                        PaywallScreen(onClose = { onShowManualPaywall(false) })
-                    }
-                } else {
-                    val vm: MainViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-                        factory = MainViewModel.Factory(db)
+                // الخادم يفرض إصداراً أحدث: البوابة لا تظهر قبل جهوزية الملف في الخفاء،
+                // وإلا يعمل المستخدم كالمعتاد حتى يكتمل التنزيل فيظهر التحديث بضغطة.
+                val appCtx = LocalContext.current.applicationContext
+                val apk = UpdateStore.readyApk(appCtx, state.minVersion)
+                if (apk != null) {
+                    UpdateGateScreen(
+                        version = state.minVersion,
+                        message = "يجب تحديث التطبيق إلى الإصدار ${state.minVersion} لمتابعة العمل.",
+                        apk = apk,
                     )
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        LicenseBanner(
-                            state = state,
-                            onRenewClick = { onShowManualPaywall(true) }
-                        )
-                        AccountGate {
-                            RootNavigation(vm = vm, darkOnChange = onDarkChange)
-                        }
-                    }
+                } else {
+                    ActiveApp(state, db, showManualPaywall, onShowManualPaywall, onDarkChange)
                 }
             }
+            else -> ActiveApp(state, db, showManualPaywall, onShowManualPaywall, onDarkChange)
         }
+}
+
+/** التجربة الاعتيادية (ترخيص فاعل أو تجربة أو سماح) — تُستخدم أيضاً حين لم يكتمل تنزيل التحديث. */
+@Composable
+private fun ActiveApp(
+    state: LicenseState,
+    db: AppDatabase,
+    showManualPaywall: Boolean,
+    onShowManualPaywall: (Boolean) -> Unit,
+    onDarkChange: (Boolean) -> Unit,
+) {
+    // Active, Trial, or Grace -> Normal app experience
+    if (showManualPaywall) {
+        androidx.activity.compose.BackHandler { onShowManualPaywall(false) }
+        Box(modifier = Modifier.fillMaxSize()) {
+            PaywallScreen(onClose = { onShowManualPaywall(false) })
+        }
+    } else {
+        val vm: MainViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+            factory = MainViewModel.Factory(db)
+        )
+        Column(modifier = Modifier.fillMaxSize()) {
+            LicenseBanner(
+                state = state,
+                onRenewClick = { onShowManualPaywall(true) }
+            )
+            AccountGate {
+                RootNavigation(vm = vm, darkOnChange = onDarkChange)
+            }
+        }
+    }
 }
 
 @Composable

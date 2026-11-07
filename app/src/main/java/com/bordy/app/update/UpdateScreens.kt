@@ -61,7 +61,7 @@ private fun GateScaffold(title: String, titleColor: androidx.compose.ui.graphics
  * الشاشة، فالضغط يفتح المُثبِّت مباشرة بلا انتظار ولا شريط تقدم.
  */
 @Composable
-private fun UpdateAction(message: String, version: String, apk: File?) {
+private fun UpdateAction(message: String, version: String, apk: File) {
     val context = LocalContext.current
     Text(
         text = message.ifBlank { "يتوفر الإصدار $version — ثبّته لمتابعة العمل." },
@@ -70,30 +70,16 @@ private fun UpdateAction(message: String, version: String, apk: File?) {
     )
     Spacer(Modifier.height(28.dp))
     Button(
-        onClick = {
-            val app = context.applicationContext
-            val file = apk
-            if (file != null) ApkInstaller.install(app, file) else UpdateScheduler.nudge(app)
-        },
+        onClick = { ApkInstaller.install(context.applicationContext, apk) },
         modifier = Modifier.fillMaxWidth()
     ) {
         Text("تثبيت")
-    }
-    if (apk == null) {
-        // الحد الأدنى رُفع أثناء انقطاع الشبكة: لا يوجد ملف بعد، فلا زر تنزيل ولا تقدم.
-        Spacer(Modifier.height(12.dp))
-        Text(
-            text = "اتصالك بالإنترنت مطلوب لتجهيز الملف — أعد الضغط بعد توفره.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
     }
 }
 
 /** بوابة التحديث الإجباري (أقدم من الحد الأدنى) — شاشة حاجزة بلا انتظار ظاهر. */
 @Composable
-fun UpdateGateScreen(version: String, message: String, apk: File?) {
+fun UpdateGateScreen(version: String, message: String, apk: File) {
     GateScaffold("تحديث جديد", BrandGreen) {
         UpdateAction(message, version, apk)
     }

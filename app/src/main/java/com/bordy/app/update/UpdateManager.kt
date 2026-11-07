@@ -11,10 +11,10 @@ sealed interface UpdateUi {
     data object None : UpdateUi
 
     /**
-     * تحديث لازم (أقدم من الحد الأدنى): `apk` هو الملف المحمَّل مسبقاً في الخفاء،
-     * ونادراً ما يكون null (انقطاع شبكة) — وفي كلتا الحالتين شاشة واحدة بلا شريط تقدم.
+     * تحديث لازم (أقدم من الحد الأدنى). `apk` غير قابل لـ null عمداً: لا تُعرض
+     * الشاشة قبل اكتمال التنزيل والتحقق في الخفاء، فزر «تثبيت» يفعّل فوراً.
      */
-    data class Forced(val version: String, val message: String, val apk: File?) : UpdateUi
+    data class Forced(val version: String, val message: String, val apk: File) : UpdateUi
 
     /** الإدارة رجّعت «أحدث إصدار» إلى نسخة أقدم — يلزم حذف وإعادة تثبيت. */
     data class RollbackRequired(val version: String, val notes: String, val copiedFile: String?) : UpdateUi
@@ -180,7 +180,7 @@ object UpdateManager {
         val ready = UpdateStore.readyApk(context, config.latestVersion)
 
         _state.value = when {
-            config.updateRequired(current) -> UpdateUi.Forced(
+            config.updateRequired(current) && ready != null -> UpdateUi.Forced(
                 config.latestVersion,
                 config.notes.ifBlank {
                     "يجب تحديث التطبيق إلى الإصدار ${config.latestVersion} لمتابعة العمل."
