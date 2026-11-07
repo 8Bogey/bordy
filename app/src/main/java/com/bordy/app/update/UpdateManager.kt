@@ -1,5 +1,6 @@
 package com.bordy.app.update
 
+import android.app.NotificationManager
 import android.content.Context
 import com.bordy.app.BuildConfig
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +36,9 @@ data class UpdatePrompt(
 /** أقل عمر للكاش يبرّر جلباً جديداً عند كل فتح — يمنع استطلاعاً بلا طائل. */
 private const val FOREGROUND_REFRESH_MS = 60_000L
 
+/** معرّف قناة الإشعارات التي أنشأها بناء 1.2 في مسار التحديث القديم. */
+private const val LEGACY_UPDATE_CHANNEL = "bordy_update"
+
 /**
  * حالة البوابة تُشتق من الكاش المحلي فوراً (بلا شبكة) وتتحدث عند كل تحقق خلفي.
  */
@@ -48,8 +52,16 @@ object UpdateManager {
     private var app: Context? = null
 
     fun init(context: Context) {
-        app = context.applicationContext
+        val appContext = context.applicationContext
+        app = appContext
+        clearLegacyNotificationChannel(appContext)
         evaluate()
+    }
+
+    /** قناة «تحديث التطبيق» من بناء 1.2: التحديث صار صامتاً فلا موضع لها في الإعدادات. */
+    private fun clearLegacyNotificationChannel(context: Context) {
+        context.getSystemService(NotificationManager::class.java)
+            ?.deleteNotificationChannel(LEGACY_UPDATE_CHANNEL)
     }
 
     /**
