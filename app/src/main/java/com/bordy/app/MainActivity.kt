@@ -151,11 +151,17 @@ private fun MainContent(
                 // الخادم يفرض إصداراً أحدث: البوابة لا تظهر قبل جهوزية الملف في الخفاء،
                 // وإلا يعمل المستخدم كالمعتاد حتى يكتمل التنزيل فيظهر التحديث بضغطة.
                 val appCtx = LocalContext.current.applicationContext
-                val apk = UpdateStore.readyApk(appCtx, state.minVersion)
+                // الملف المُحمَّل مسبقاً يُخزَّن تحت «أحدث إصدار» من إعدادات التحديث،
+                // والخادم قد يرسل هنا رقم إصدار (versionCode) أو اسماً غير مطابق:
+                // تسمية الملف وحدها كانت تُبقي البوابة مقفلة رغم جهوزية الملف.
+                val latest = UpdateStore.loadConfig(appCtx).latestVersion
+                val readyLatest = UpdateStore.readyApk(appCtx, latest)
+                val apk = readyLatest ?: UpdateStore.readyApk(appCtx, state.minVersion)
+                val shown = if (readyLatest != null) latest else state.minVersion
                 if (apk != null) {
                     UpdateGateScreen(
-                        version = state.minVersion,
-                        message = "يجب تحديث التطبيق إلى الإصدار ${state.minVersion} لمتابعة العمل.",
+                        version = shown,
+                        message = "يجب تحديث التطبيق إلى الإصدار $shown لمتابعة العمل.",
                         apk = apk,
                     )
                 } else {

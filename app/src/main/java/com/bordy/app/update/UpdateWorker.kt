@@ -4,14 +4,18 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.bordy.app.BuildConfig
+import kotlinx.coroutines.CancellationException
 import java.io.File
 
 /**
  * دورة واحدة صامتة بالكامل: جلب إعدادات التحديث ثم تنزيل الـ APK في الخلفية بلا
  * إشعار ولا شريط تقدم ولا خدمة في المقدمة. لا تظهر أي شاشة تحديث إلا بعد اكتمال
  * التنزيل والتحقق من التوقيع، فلا ينتظر المستخدم أبداً.
- * تشغيلات السلسلة القصيرة (أقل من 15 دقيقة) لا تعيد المحاولة: التشغيلة التالية
- * كفيلة بذلك، فلا تتراكم الأعمال ولا تُستهلك البيانات بلا داعٍ.
+ *
+ * التشغيلات المجدولة (الدورية وسلسلة الفواصل القصيرة) لا تعيد المحاولة أبداً:
+ * `Result.retry()` يستسلم لسياسة backoff فيؤجّل الفحص التالي ساعات بدل أن
+ * ينتظر دوره الطبيعي، والتشغيلة القادمة كفيلة بالعمل. إعادة المحاولة فقط
+ * لتشغيلة المالك الفورية (nudge) لأنها لا تملك دوراً تالياً.
  */
 class UpdateWorker(
     appContext: Context,
@@ -21,19 +25,34 @@ class UpdateWorker(
     private val chainedTick: Boolean
         get() = inputData.getBoolean(UpdateScheduler.KEY_LOOP_TICK, false)
 
+    private val immediate: Boolean
+        get() = inputData.getBoolean(UpdateScheduler.KEY_IMMEDIATE, false)
+
+    private val retryAllowed: Boolean
+        get() = immediate && runAttemptCount < 2
+
     override suspend fun doWork(): Result {
-        val result = runOnce()
+        // إن شذّت أي خطوة فالسلسلة يجب أن تتمّد رغم ذلك، وإلا مات الفحص الدوري
+        // نهائياً ولا شيء يعيد تسليحه غير فتح التطبيق.
+        val result = try {
+            runOnce()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Throwable) {
+            Result.success()
+        }
         // سلسلة الفواصل القصيرة تمدّ نفسها فقط؛ التشغيلات الفورية (تنبيه/زر) لا تلمس الجدولة.
-        if (chainedTick) UpdateScheduler.afterRun(applicationContext)
+        if (chainedTick && !isStopped) UpdateScheduler.afterRun(applicationContext)
         return result
     }
 
     private suspend fun runOnce(): Result {
+        if (isStopped) return Result.success()
         val context = applicationContext
         val config = UpdateApi.fetchConfig()
-            ?: return if (!chainedTick && runAttemptCount < 2) Result.retry() else Result.success()
+            ?: return if (retryAllowed) Result.retry() else Result.success()
 
-        UpdateManager.onConfigFetched(context, config)
+        UpdateManager.onConfigFetched(context, config, rearm = !chainedTick)
         val current = BuildConfig.VERSION_NAME
 
         // كل متأخر عن «أحدث إصدار» يحصل على ملفه في الخفاء فوراً، فيأتي التنبيه
@@ -68,7 +87,7 @@ class UpdateWorker(
         val dest = File(UpdateStore.updatesDir(context), "bordy-$target.apk")
         if (!UpdateApi.downloadApk(url, dest)) {
             UpdateManager.evaluate()
-            return if (!chainedTick && runAttemptCount < 2) Result.retry() else Result.success()
+            return if (retryAllowed) Result.retry() else Result.success()
         }
 
         // ملف بتوقيع غير توقيعنا أو بغير الإصدار المطلوب = تنزيل مغشوش: يُحذف ولا

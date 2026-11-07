@@ -67,22 +67,31 @@ object UpdateManager {
     /**
      * يُستدعى في onResume: يعيد قراءة الكاش فوراً، ثم يجلب الإعدادات إن كانت
      * قديمة — لأن رفع «أقل إصدار مسموح» يجب أن يظهر عند أول فتح لا بعد ساعات
-     * من انتظار العامل الدوري. التنشيط لا يلمس ساعة الفحص الدوري.
+     * من انتظار العامل الدوري. إعادة التسليح هنا حارس لا تصفير: الوتيرة المسجَّلة
+     * تُحترم، ولا يُمسّ عداد الفحص الدوري ما لم تكن قديمة.
      */
     fun onAppForeground(context: Context) {
         val appContext = context.applicationContext
         evaluate()
+        // حارس للجدولة: النظام يلغي أعمال التطبيق (تحديث من المتجر، force stop،
+        // توفير البطارية) ولا شيء يعيد التسليح غير فتح التطبيق. لا يلمس السلسلة
+        // إن كانت مسلّحة بالوتيرة نفسها.
+        UpdateScheduler.ensurePeriodic(appContext)
         val cacheAge = System.currentTimeMillis() - UpdateStore.lastFetchAt(appContext)
         if (cacheAge > FOREGROUND_REFRESH_MS) UpdateScheduler.nudge(appContext)
     }
 
-    /** يستدعيه العامل الخلفي بعد جلب الإعدادات من الخادم. */
-    fun onConfigFetched(context: Context, config: UpdateConfig) {
+    /**
+     * يستدعيه العامل الخلفي بعد جلب الإعدادات. `rearm=false` في تشغيلات السلسلة:
+     * إعادة التسليح من داخل التشغيلة يلغيها وهي قائمة، فتضيع الدورة الحالية؛
+     * `afterRun` يتولى الانتقال إلى الوتيرة الجديدة بعد الجلب مباشرة.
+     */
+    fun onConfigFetched(context: Context, config: UpdateConfig, rearm: Boolean = true) {
         val appContext = context.applicationContext
         val previous = UpdateStore.loadConfig(appContext)
         UpdateStore.saveConfig(appContext, config, System.currentTimeMillis())
         // تغيّر الفترة من اللوحة وحده يستدعي إعادة التسليح — لا شيء هنا يُلغي الفحص الدوري.
-        if (previous.checkIntervalSeconds != config.checkIntervalSeconds) {
+        if (rearm && previous.checkIntervalSeconds != config.checkIntervalSeconds) {
             UpdateScheduler.ensurePeriodic(appContext, force = true)
         }
         evaluate()
