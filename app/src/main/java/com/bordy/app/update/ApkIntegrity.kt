@@ -28,8 +28,15 @@ object ApkIntegrity {
             val signers = info.signingInfo?.apkContentsSigners ?: return false
             if (signers.isEmpty()) return false
             if (BuildConfig.EXPECTED_CERT_SHA256.startsWith("REPLACE")) return true
-            val digest = MessageDigest.getInstance("SHA-256").digest(signers.first().toByteArray())
-            digest.joinToString(":") { "%02X".format(it) } == BuildConfig.EXPECTED_CERT_SHA256
+            val digest = MessageDigest.getInstance("SHA-256")
+            val expected = BuildConfig.EXPECTED_CERT_SHA256
+            // كل الموقِّعين لا أولهم فقط: ملف موقَّع بدارين (تدوير مفاتيح) أو بـ v1 +
+            // v3 قد يرفع الشهادة الصحيحة في غير المرتبة الأولى، فيُرفض باطلاً.
+            signers.any { signer ->
+                digest.reset()
+                digest.digest(signer.toByteArray())
+                    .joinToString(":") { "%02X".format(it) } == expected
+            }
         } catch (_: Exception) {
             false
         }
