@@ -6,23 +6,18 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.LocalOffer
@@ -41,8 +36,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.bordy.app.BuildConfig
 import com.bordy.app.R
 import com.bordy.app.license.*
 import com.bordy.app.ui.animations.bouncyClickable
@@ -63,8 +60,19 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 private enum class PaymentSheetStep {
-    Instructions,
-    ScreenshotGuide
+    SelectMethod,
+    PaymentDetails
+}
+
+private fun String.toComposeColorOrNull(): Color? =
+    if (matches(Regex("#[0-9a-fA-F]{6}"))) Color(android.graphics.Color.parseColor(this)) else null
+
+private fun promoDiscountLabel(disc: DiscountInfo): String = when (disc.kind) {
+    "PERCENT" -> "خصم ${disc.value}%"
+    "FIXED" -> "خصم ${"%,d".format(disc.value)} د.ع"
+    "FULL" -> "خصم كامل 100%"
+    "FREE_DAYS" -> "+${disc.value} يوم مجاني"
+    else -> "خصم مطبق"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -89,49 +97,19 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
     var finalAmount by remember { mutableIntStateOf(0) }
     var paymentMethods by remember { mutableStateOf<List<PaymentMethod>>(emptyList()) }
     var showPaymentSheet by remember { mutableStateOf(false) }
-    var sheetStep by remember { mutableStateOf(PaymentSheetStep.Instructions) }
-    var orderTxnRef by remember { mutableStateOf("") }
+    var sheetStep by remember { mutableStateOf(PaymentSheetStep.SelectMethod) }
     var sheetError by remember { mutableStateOf<String?>(null) }
+    var showPromoField by remember { mutableStateOf(false) }
 
     // Inside BottomSheet state
     var selectedMethodIndex by remember { mutableIntStateOf(0) }
 
     var rejectionReason by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
-    var submittingProof by remember { mutableStateOf(false) }
     var waitingSubmitted by remember { mutableStateOf(false) }
     var orderPlanTitle by remember { mutableStateOf("") }
     var activationSucceeded by remember { mutableStateOf(false) }
     var approvalNote by remember { mutableStateOf<String?>(null) }
-
-    // Receipt image: picked in-app, compressed, uploaded to the admin panel directly.
-    var receiptUri by remember { mutableStateOf<Uri?>(null) }
-    var receiptSize by remember { mutableIntStateOf(0) }
-    var receiptReady by remember { mutableStateOf(false) }
-    var receiptBusy by remember { mutableStateOf(false) }
-    var receiptError by remember { mutableStateOf<String?>(null) }
-
-    val receiptPicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia()
-    ) { uri ->
-        if (uri == null) return@rememberLauncherForActivityResult
-        receiptBusy = true
-        receiptError = null
-        scope.launch {
-            val bytes = withContext(Dispatchers.IO) { ReceiptImage.prepare(context, uri) }
-            receiptBusy = false
-            if (bytes == null) {
-                receiptError = "تعذر قراءة الصورة، جرّب صورة أخرى"
-                return@launch
-            }
-            // Keep a copy on device so a failed upload retries itself later.
-            LicenseStore.saveReceipt(context, currentOrderId, bytes)
-            receiptUri = uri
-            receiptSize = bytes.size
-            receiptReady = true
-            sheetError = null
-        }
-    }
 
     // Trust the server's approval only when the token actually verifies on this device.
     suspend fun handleApproved(token: String?) {
@@ -168,10 +146,8 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
         if (pending != null) {
             currentOrderId = pending.id
             finalAmount = pending.amount
-            orderTxnRef = pending.txnRef ?: ""
             orderPlanTitle = pending.planTitle
             waitingSubmitted = pending.submitted
-            receiptReady = LicenseStore.hasReceipt(context, pending.id)
             if (pending.planId.isNotBlank()) selectedPlanId = pending.planId
             step = PaywallStep.WaitingApproval
         }
@@ -284,6 +260,15 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
         if (clean.isEmpty()) return false
         if (clean.contains("XXXX", ignoreCase = true)) return false
         return clean.filter { it.isDigit() }.length >= 10
+    }
+
+    // طريقة دفع واحدة فقط = الدخول مباشرة إلى تفاصيل التحويل دون شاشة اختيار.
+    fun openPaymentSheet(preferredMethod: String? = null) {
+        selectedMethodIndex = paymentMethods.indexOfFirst { it.name == preferredMethod }
+            .takeIf { it >= 0 } ?: 0
+        sheetStep = if (paymentMethods.size == 1) PaymentSheetStep.PaymentDetails else PaymentSheetStep.SelectMethod
+        sheetError = null
+        showPaymentSheet = true
     }
 
     Scaffold(
@@ -411,7 +396,8 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                         }
                     }
 
-                    // ── Promo Code Card ──
+                    // ── كود الخصم: مطوي افتراضياً — لا يشوّش على من لا يملك كوداً ──
+                    if (showPromoField || promoError != null || (appliedDiscount != null && !discountIsAuto)) {
                     Surface(
                         shape = CardShape,
                         color = MaterialTheme.colorScheme.surface,
@@ -419,31 +405,6 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Column(Modifier.padding(14.dp)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(34.dp)
-                                        .clip(CircleShape)
-                                        .background(BrandYellow),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.LocalOffer,
-                                        contentDescription = null,
-                                        tint = contentColorOn(BrandYellow),
-                                        modifier = Modifier.size(17.dp)
-                                    )
-                                }
-                                Spacer(Modifier.width(10.dp))
-                                Text(
-                                    text = "هل لديك كود خصم؟",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-
-                            Spacer(Modifier.height(10.dp))
-
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
@@ -541,13 +502,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
 
                             if (appliedDiscount != null) {
                                 val disc = appliedDiscount!!
-                                val discDesc = when (disc.kind) {
-                                    "PERCENT" -> "خصم ${disc.value}%"
-                                    "FIXED" -> "خصم ${"%,d".format(disc.value)} د.ع"
-                                    "FULL" -> "خصم كامل 100%"
-                                    "FREE_DAYS" -> "+${disc.value} يوم مجاني"
-                                    else -> "خصم مطبق"
-                                }
+                                val discDesc = promoDiscountLabel(disc)
                                 Spacer(Modifier.height(8.dp))
                                 Surface(
                                     modifier = Modifier.fillMaxWidth(),
@@ -588,22 +543,63 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                             }
                         }
                     }
-
-                    // ── Price Summary & Checkout Action ──
-                    Surface(
-                        shape = CardShape,
-                        color = MaterialTheme.colorScheme.surface,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            Modifier.padding(18.dp),
-                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                    } else if (appliedDiscount != null) {
+                        // خصم حملة تلقائي — شارة صغيرة فقط دون أي حقل
+                        val disc = appliedDiscount!!
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = SellGreenDark,
+                            shape = CircleShape
                         ) {
-                            // ── Submit Button: "إتمام الدفع" ──
-                            Button(
-                                onClick = {
-                                    if (paymentMethods.isEmpty()) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Check, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text(
+                                    text = "خصم مطبّق: ${promoDiscountLabel(disc)}",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    } else {
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(CardShape)
+                                .bouncyClickable { showPromoField = true },
+                            shape = CardShape,
+                            color = MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.LocalOffer,
+                                    contentDescription = null,
+                                    tint = BrandYellow,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = "لديك كود خصم؟",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+
+                    // ── زر الاشتراك الرئيسي ──
+                    Button(
+                        onClick = {
+                            if (paymentMethods.isEmpty()) {
                                         checkoutError = if (plansResponse == null)
                                             "جارٍ تحميل طرق الدفع، انتظر قليلاً"
                                         else
@@ -673,9 +669,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                                         } else if (paymentMethods.isEmpty()) {
                                                             checkoutError = "طرق الدفع غير مهيأة حالياً. تواصل مع الدعم لإتمام الاشتراك."
                                                         } else {
-                                                            sheetStep = PaymentSheetStep.Instructions
-                                                            sheetError = null
-                                                            showPaymentSheet = true
+                                                            openPaymentSheet(details.method)
                                                         }
                                                     } else {
                                                         checkoutError = errorMessageOf(res) ?: "تعذر إنشاء الطلب، حاول مرة أخرى"
@@ -695,7 +689,6 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
 
                                                         currentOrderId = orderId
                                                         finalAmount = finalPrice
-                                                        orderTxnRef = ""
                                                         orderPlanTitle = plans.find { it.id == selectedPlanId }?.title ?: currentPlan.title
                                                         waitingSubmitted = orderStatus == "SUBMITTED"
 
@@ -712,10 +705,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                                                 LicenseStore.savePendingOrder(
                                                                     context, orderId, selectedPlanId, currentPlan.title, finalPrice
                                                                 )
-                                                                selectedMethodIndex = 0
-                                                                sheetStep = PaymentSheetStep.Instructions
-                                                                sheetError = null
-                                                                showPaymentSheet = true
+                                                                openPaymentSheet()
                                                             }
                                                         }
                                                     }
@@ -735,7 +725,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                 if (isLoading) {
                                     CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                                 } else {
-                                    Text("إتمام الدفع", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                                    Text("اشترك الآن", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                                 }
                             }
 
@@ -748,8 +738,6 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                     modifier = Modifier.fillMaxWidth()
                                 )
                             }
-                        }
-                    }
                 }
 
                 is PaywallStep.WaitingApproval -> {
@@ -760,7 +748,6 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                             if (currentOrderId.isBlank()) currentOrderId = pending.id
                             if (currentOrderId == pending.id) {
                                 if (finalAmount <= 0) finalAmount = pending.amount
-                                if (orderTxnRef.isBlank()) orderTxnRef = pending.txnRef ?: ""
                                 if (orderPlanTitle.isBlank()) orderPlanTitle = pending.planTitle
                                 waitingSubmitted = pending.submitted
                             }
@@ -842,17 +829,14 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                             Spacer(Modifier.height(16.dp))
 
                             Text(
-                                text = if (waitingSubmitted) "طلبك قيد المراجعة الآن ⏳" else "أكمل التحويل حتى يتم تفعيل حسابك 💳",
+                                text = if (waitingSubmitted) "طلبك قيد المراجعة الآن ⏳" else "أكمل التحويل 💳",
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold
                             )
                             Spacer(Modifier.height(8.dp))
                             Text(
-                                text = if (waitingSubmitted) {
-                                    "تم تسجيل طلبك ($currentOrderId) واستلام إشعار الحوالة.\nبمجرد مراجعة الحوالة وتأكيدها يتم تفعيل الاشتراك في حسابك فوراً."
-                                } else {
-                                    "تم تسجيل طلبك ($currentOrderId).\nحوّل المبلغ، وأرسل صورة الوصل على واتساب أو أرفقها هنا، ثم اضغط «تحقق من التفعيل» حتى يعمل حسابك."
-                                },
+                                text = if (waitingSubmitted) "وصلنا طلبك. نؤكد الحوالة ويُفعّل اشتراكك تلقائياً خلال دقائق."
+                                else "تم تسجيل طلبك ($currentOrderId).\nحوّل المبلغ وأرسل صورة الوصل على واتساب، وسنفعّل حسابك فور التأكيد.",
                                 style = MaterialTheme.typography.bodyMedium,
                                 textAlign = TextAlign.Center,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -891,14 +875,9 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
 
                             Spacer(Modifier.height(20.dp))
 
-                            if (!waitingSubmitted && paymentMethods.isNotEmpty()) {
+                            if (paymentMethods.isNotEmpty()) {
                                 OutlinedButton(
-                                    onClick = {
-                                        selectedMethodIndex = 0
-                                        sheetStep = PaymentSheetStep.Instructions
-                                        sheetError = null
-                                        showPaymentSheet = true
-                                    },
+                                    onClick = { openPaymentSheet(LicenseStore.getPendingOrder(context)?.method) },
                                     shape = CircleShape,
                                     modifier = Modifier
                                         .fillMaxWidth()
@@ -906,7 +885,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                 ) {
                                     Icon(Icons.Default.Payments, contentDescription = null, modifier = Modifier.size(18.dp))
                                     Spacer(Modifier.width(8.dp))
-                                    Text("عرض تفاصيل التحويل وإرسال الإثبات", fontWeight = FontWeight.Bold)
+                                    Text(if (waitingSubmitted) "عرض تفاصيل التحويل" else "إعادة إرسال الوصل على واتساب", fontWeight = FontWeight.Bold)
                                 }
                                 Spacer(Modifier.height(10.dp))
                             }
@@ -918,21 +897,23 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                     scope.launch {
                                         // An unsent receipt (e.g. the app was closed right after the transfer) is retried here.
                                         if (!waitingSubmitted) {
-                                            val methodName = LicenseStore.getPendingOrder(context)?.method
+                                            val pendingOrder = LicenseStore.getPendingOrder(context)
+                                            val methodName = pendingOrder?.method
                                                 ?: paymentMethods.getOrNull(selectedMethodIndex)?.name
                                             if (!methodName.isNullOrBlank()) {
                                                 val imageBase64 = withContext(Dispatchers.IO) {
                                                     LicenseStore.getReceiptBase64(context, currentOrderId) ?: ""
                                                 }
+                                                val storedTxn = pendingOrder?.txnRef ?: ""
                                                 val proof = try {
-                                                    LicenseApi.submitProof(did, currentOrderId, methodName, orderTxnRef.trim(), imageBase64)
+                                                    LicenseApi.submitProof(did, currentOrderId, methodName, storedTxn, imageBase64)
                                                 } catch (_: Exception) { null }
                                                 if (proof?.optBoolean("ok", false) == true) {
                                                     waitingSubmitted = true
                                                     LicenseStore.updatePendingProof(
                                                         context,
                                                         methodName,
-                                                        orderTxnRef.trim().ifBlank { null },
+                                                        storedTxn.ifBlank { null },
                                                         true
                                                     )
                                                 }
@@ -1144,7 +1125,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
         ModalBottomSheet(
             onDismissRequest = {
                 showPaymentSheet = false
-                sheetStep = PaymentSheetStep.Instructions
+                sheetStep = PaymentSheetStep.SelectMethod
             },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             containerColor = MaterialTheme.colorScheme.surface,
@@ -1152,7 +1133,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
         ) {
             val selectedMethod = paymentMethods.getOrNull(selectedMethodIndex)
                 ?: paymentMethods.firstOrNull()
-                ?: PaymentMethod(name = "—", account = "—", note = "")
+                ?: PaymentMethod(id = "", name = "—", account = "—", note = "", borderColor = "", hasLogo = false)
 
             Column(
                 modifier = Modifier
@@ -1162,52 +1143,14 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // ── 1. البطاقة العلوية: خطوات التحويل والتأكيد للمستخدم العراقي ──
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    color = SellGreenDark,
-                    border = BorderStroke(1.dp, SellGreen)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Payments, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                text = "طريقة التحويل والتفعيل (3 خطوات سهلة):",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                        }
-                        Text("1️⃣ اختر المحفظة وانسخ الرقم بضغطة زر.", style = MaterialTheme.typography.bodySmall, fontSize = 11.sp, color = Color.White)
-                        Text("2️⃣ حوّل المبلغ من تطبيق محفظتك ثم خذ لقطة شاشة.", style = MaterialTheme.typography.bodySmall, fontSize = 11.sp, color = Color.White)
-                        Text("3️⃣ أرفق صورة الوصل هنا أو أرسلها على واتساب، ويتم تفعيل اشتراكك فوراً!", style = MaterialTheme.typography.bodySmall, fontSize = 11.sp, color = Color.White)
-                    }
-                }
-
-                // ── 2. عبارة "إتمام التحويل والاشتراك" موسطة أفقياً مع زر الإغلاق الدائري ──
+                // ── زر الإغلاق فقط (حُذف البانر الأخضر وعنوان «إتمام التحويل والاشتراك») ──
                 Box(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text(
-                        text = "إتمام التحويل والاشتراك",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Center
-                    )
-
                     TintedCircleButton(
                         onClick = {
                             showPaymentSheet = false
-                            sheetStep = PaymentSheetStep.Instructions
+                            sheetStep = PaymentSheetStep.SelectMethod
                         },
                         icon = Icons.Default.Close,
                         contentDescription = "إغلاق",
@@ -1229,39 +1172,123 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                     )
                 }
 
-                if (sheetStep == PaymentSheetStep.Instructions) {
-                    // ── 3. اختيار طريقة التحويل (أزرار كبسولية أفقية قابلة للتمرير) ──
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        paymentMethods.forEachIndexed { index, pm ->
-                            val isChosen = index == selectedMethodIndex
-                            Surface(
-                                modifier = Modifier
-                                    .clip(CircleShape)
-                                    .bouncyClickable { selectedMethodIndex = index },
-                                shape = CircleShape,
-                                color = if (isChosen) SellGreen else MaterialTheme.colorScheme.surfaceVariant,
-                                border = BorderStroke(
-                                    width = 1.dp,
-                                    color = if (isChosen) SellGreen else MaterialTheme.colorScheme.outline
-                                )
-                            ) {
-                                Box(
-                                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
-                                    contentAlignment = Alignment.Center
+                if (sheetStep == PaymentSheetStep.SelectMethod) {
+                    // ── شبكة إيقونات طرق الدفع: الصورة المعيّنة من الإدارة هي الإيقونة نفسها،
+                    //    والضغط على الإيقونة ينقل مباشرة إلى إكمال الدفع ──
+                    Text(
+                        text = "اختر طريقة الدفع",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    if (paymentMethods.isEmpty()) {
+                        Text(
+                            text = "لا توجد طرق دفع متاحة حالياً، تواصل مع الدعم.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    val columns = 3
+                    var tileIndex = 0
+                    paymentMethods.chunked(columns).forEach { rowMethods ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            rowMethods.forEach { pm ->
+                                val index = tileIndex++
+                                val chosen = index == selectedMethodIndex
+                                val frameColor = pm.borderColor.toComposeColorOrNull()
+                                    ?: if (chosen) SellGreen else MaterialTheme.colorScheme.outline
+                                Surface(
+                                    shape = RoundedCornerShape(18.dp),
+                                    color = if (chosen) SellGreenDark else MaterialTheme.colorScheme.surfaceVariant,
+                                    border = BorderStroke(if (chosen) 2.dp else 1.25.dp, frameColor),
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(18.dp))
+                                        .bouncyClickable {
+                                            selectedMethodIndex = index
+                                            sheetStep = PaymentSheetStep.PaymentDetails
+                                        }
                                 ) {
-                                    Text(
-                                        text = pm.name,
-                                        fontSize = 13.sp,
-                                        fontWeight = if (isChosen) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (isChosen) Color.White else MaterialTheme.colorScheme.onSurface
-                                    )
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 6.dp, vertical = 12.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        val logoUrl = pm.logoUrl(BuildConfig.API_BASE_URL)
+                                        if (logoUrl != null) {
+                                            AsyncImage(
+                                                model = logoUrl,
+                                                contentDescription = pm.name,
+                                                contentScale = ContentScale.Fit,
+                                                modifier = Modifier
+                                                    .fillMaxWidth(0.68f)
+                                                    .aspectRatio(1f)
+                                            )
+                                        } else {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth(0.68f)
+                                                    .aspectRatio(1f)
+                                                    .clip(CircleShape)
+                                                    .background(if (chosen) SellGreen else MaterialTheme.colorScheme.surface),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(
+                                                    text = pm.name.take(1),
+                                                    fontWeight = FontWeight.Black,
+                                                    fontSize = 24.sp,
+                                                    color = if (chosen) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
+                                                )
+                                            }
+                                        }
+                                        Text(
+                                            text = pm.name,
+                                            fontSize = 12.sp,
+                                            fontWeight = if (chosen) FontWeight.Bold else FontWeight.Medium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            color = if (chosen) Color.White else MaterialTheme.colorScheme.onSurface
+                                        )
+                                    }
                                 }
                             }
+                            repeat(columns - rowMethods.size) { Spacer(Modifier.weight(1f)) }
+                        }
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+                } else {
+                    if (sheetStep == PaymentSheetStep.PaymentDetails) {
+                        // ── ترويسة تفاصيل التحويل: رجوع إلى شبكة الإيقونات + اسم الطريقة ──
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            TintedCircleButton(
+                                onClick = { sheetStep = PaymentSheetStep.SelectMethod },
+                                icon = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "رجوع",
+                                tint = MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                size = 34.dp,
+                                iconSize = 17.dp
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                text = "الدفع عبر ${selectedMethod.name}",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
                         }
                     }
 
@@ -1326,14 +1353,16 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                 }
                             }
 
-                            // ترتيب بصري جميل لاسم المحفظة والملاحظة
-                            Text(
-                                text = "محفظة / حساب ${selectedMethod.name}" + if (selectedMethod.note.isNotBlank()) " • ${selectedMethod.note}" else "",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            // ملاحظة الإدارة (إن وُجدت) — الاسم ظاهر في الترويسة فلا داعي لتكراره
+                            if (selectedMethod.note.isNotBlank()) {
+                                Text(
+                                    text = selectedMethod.note,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
 
-                            // صف رقم البطاقة وزر النسخ
+                            // صف رقم البطاقة وزر النسخ — لمس الرقم نفسه ينسخ أيضاً
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1344,7 +1373,16 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                     text = selectedMethod.account,
                                     style = MaterialTheme.typography.titleLarge,
                                     fontWeight = FontWeight.ExtraBold,
-                                    color = BrandYellow
+                                    color = BrandYellow,
+                                    modifier = Modifier
+                                        .weight(1f, fill = false)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .clickable {
+                                            val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                            cm.setPrimaryClip(ClipData.newPlainText(selectedMethod.name, selectedMethod.account))
+                                            Toast.makeText(context, "تم نسخ الرقم ✅", Toast.LENGTH_SHORT).show()
+                                        }
+                                        .padding(horizontal = 4.dp, vertical = 2.dp)
                                 )
 
                                 Button(
@@ -1366,136 +1404,8 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                         }
                     }
 
-                    // ── رقم العملية (اختياري) — يسرّع مطابقة الحوالة في الإدارة ──
-                    OutlinedTextField(
-                        value = orderTxnRef,
-                        onValueChange = {
-                            orderTxnRef = it.take(64)
-                            if (sheetError != null) sheetError = null
-                        },
-                        label = { Text("رقم العملية من إشعار التحويل (اختياري)") },
-                        placeholder = { Text("مثال: 2026849102") },
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = SellGreen,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            cursorColor = SellGreen
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    // ── إرفاق صورة الإيصال داخل التطبيق — أسرع طريق للتفعيل ──
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = CardShape,
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        border = BorderStroke(
-                            if (receiptReady) 1.5.dp else 1.dp,
-                            if (receiptReady) SellGreen else MaterialTheme.colorScheme.outline
-                        )
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(32.dp)
-                                        .clip(CircleShape)
-                                        .background(if (receiptReady) SellGreen else MaterialTheme.colorScheme.surfaceVariant),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = if (receiptReady) Icons.Default.CheckCircle else Icons.Default.CameraAlt,
-                                        contentDescription = null,
-                                        tint = if (receiptReady) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(17.dp)
-                                    )
-                                }
-                                Spacer(Modifier.width(9.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Text(
-                                        text = if (receiptReady) "صورة الإيصال جاهزة" else "أرفق صورة إشعار التحويل",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                    Text(
-                                        text = if (receiptReady) "${ReceiptImage.humanSize(receiptSize)} • تُرسل للإدارة مباشرة"
-                                        else "تُرسل مباشرة إلى الإدارة دون الحاجة لواتساب",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-
-                            if (receiptReady && receiptUri != null) {
-                                AsyncImage(
-                                    model = receiptUri,
-                                    contentDescription = "صورة إيصال التحويل",
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(140.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                )
-                            }
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                OutlinedButton(
-                                    onClick = {
-                                        if (receiptBusy) return@OutlinedButton
-                                        receiptPicker.launch(
-                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                        )
-                                    },
-                                    shape = CircleShape,
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    if (receiptBusy) {
-                                        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = SellGreen)
-                                        Spacer(Modifier.width(8.dp))
-                                        Text("جارٍ تجهيز الصورة…", fontSize = 12.sp)
-                                    } else {
-                                        Icon(Icons.Default.CameraAlt, contentDescription = null, modifier = Modifier.size(16.dp))
-                                        Spacer(Modifier.width(6.dp))
-                                        Text(if (receiptReady) "تغيير الصورة" else "اختيار صورة من المعرض", fontSize = 12.sp)
-                                    }
-                                }
-                                if (receiptReady) {
-                                    TextButton(
-                                        onClick = {
-                                            receiptUri = null
-                                            receiptReady = false
-                                            receiptSize = 0
-                                            LicenseStore.clearReceipts(context)
-                                        }
-                                    ) {
-                                        Text("إزالة", fontSize = 12.sp, color = DangerRed)
-                                    }
-                                }
-                            }
-
-                            if (receiptError != null) {
-                                Text(
-                                    text = receiptError ?: "",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = DangerRed
-                                )
-                            }
-                        }
-                    }
-
-                    // ── 5. زر التأكيد عبر واتساب مع أيقونة واتساب مكان الدائرة الزرقاء بدون أيقونة بالنص ──
+                    // ── زر التأكيد عبر واتساب مع أيقونة واتساب مكان الدائرة الزرقاء بدون أيقونة بالنص ──
+                    if (sheetStep == PaymentSheetStep.PaymentDetails) {
                     Button(
                         onClick = {
                             val message = buildString {
@@ -1505,7 +1415,6 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                 append("طريقة التحويل: ${selectedMethod.name}\n")
                                 append("كود الطلب: $currentOrderId\n")
                                 append("كود الجهاز: $did\n")
-                                if (orderTxnRef.isNotBlank()) append("رقم العملية: ${orderTxnRef.trim()}\n")
                                 append("\nوهذه صورة الوصل 📸")
                             }
 
@@ -1522,8 +1431,21 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                                 cm.setPrimaryClip(ClipData.newPlainText("Order Info", message))
                             }
 
-                            // تظهر في هذه النافذة المنبثقة نفسها بدلاً مما فيها شاشة تأكيد الحوالة وصورة آسيا باي
-                            sheetStep = PaymentSheetStep.ScreenshotGuide
+                            // رسالة واتساب نفسها تصل الإدارة كاملة؛ نسجّل الطلب «مرسلاً» تلقائياً
+                            // وننتقل إلى شاشة الانتظار — بلا خطوات إضافية على المستخدم.
+                            scope.launch {
+                                val txn = LicenseStore.getPendingOrder(context)?.txnRef
+                                val resp = try {
+                                    LicenseApi.submitProof(did, currentOrderId, selectedMethod.name, txn ?: "", "")
+                                } catch (_: Exception) { null }
+                                if (resp?.optBoolean("ok", false) == true) {
+                                    waitingSubmitted = true
+                                    LicenseStore.updatePendingProof(context, selectedMethod.name, txn, true)
+                                }
+                                showPaymentSheet = false
+                                sheetStep = PaymentSheetStep.SelectMethod
+                                step = PaywallStep.WaitingApproval
+                            }
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -1567,315 +1489,7 @@ fun PaywallScreen(onClose: (() -> Unit)? = null) {
                         }
                     }
 
-                    Spacer(Modifier.height(8.dp))
-
-                } else {
-                    // ── الشاشة البديلة داخل نفس النافذة بعد الضغط على الزر ──
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(BrandYellow),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CameraAlt,
-                                contentDescription = null,
-                                tint = contentColorOn(BrandYellow),
-                                modifier = Modifier.size(18.dp)
-                            )
-                        }
-                        Spacer(Modifier.width(10.dp))
-                        Text(
-                            text = "قم بتأكيد الحوالة بلقطة شاشة",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-
-                    Text(
-                        text = "بعد إتمام التحويل، أرفق صورة الإشعار داخل التطبيق عبر زر «إرسال الإيصال والتحقق الآن» ليصل طلبك فوراً، أو أرسلها على واتساب كما في النموذج أدناه:",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
-                    // ── نموذج توضيحي لقطة شاشة حوالة آسيا باي (AsiaPay Receipt Mockup) ──
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = CardShape,
-                        color = Color(0xFF141923),
-                        border = BorderStroke(1.5.dp, BrandYellow)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            // AsiaPay Brand Header
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(28.dp)
-                                            .clip(CircleShape)
-                                            .background(BrandYellow),
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Text("A", fontWeight = FontWeight.Black, color = Color.Black, fontSize = 15.sp)
-                                    }
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(
-                                        text = selectedMethod.name,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 13.sp,
-                                        color = BrandYellow
-                                    )
-                                }
-                                Surface(
-                                    color = SellGreenDark,
-                                    shape = CircleShape
-                                ) {
-                                    Text(
-                                        text = "إشعار تحويل",
-                                        color = Color.White,
-                                        fontSize = 11.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
-                                    )
-                                }
-                            }
-
-                            Spacer(Modifier.height(14.dp))
-
-                            // Success Icon & Amount
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                tint = SellGreen,
-                                modifier = Modifier.size(46.dp)
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                text = "تمت عملية التحويل بنجاح",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 14.sp,
-                                color = Color.White
-                            )
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                text = "${"%,d".format(finalAmount)} د.ع",
-                                fontSize = 24.sp,
-                                fontWeight = FontWeight.Black,
-                                color = SellGreen
-                            )
-
-                            Spacer(Modifier.height(12.dp))
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
-                            Spacer(Modifier.height(12.dp))
-
-                            // Receipt Details Grid
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(6.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text("المستلم:", fontSize = 12.sp, color = Color.Gray)
-                                    Text("${selectedMethod.name} (${selectedMethod.account})", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                                }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text("رقم العملية:", fontSize = 12.sp, color = Color.Gray)
-                                    Text(orderTxnRef.trim().ifBlank { "TXN-••••••••" }, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = BrandYellow)
-                                }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text("نوع المعاملة:", fontSize = 12.sp, color = Color.Gray)
-                                    Text("تحويل أموال مباشر", fontSize = 12.sp, color = Color.White)
-                                }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
-                                ) {
-                                    Text("حالة الحوالة:", fontSize = 12.sp, color = Color.Gray)
-                                    Text("مكتملة (Successful) ✅", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = SellGreen)
-                                }
-                            }
-
-                            Spacer(Modifier.height(10.dp))
-                            Surface(
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                shape = CircleShape,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    text = "📸 لقطة شاشة مطابقة لهذا النموذج لإشعار الحوالة",
-                                    fontSize = 11.sp,
-                                    color = BrandYellow,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(6.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    // Action Buttons below sample
-                    Button(
-                        onClick = {
-                            val message = buildString {
-                                append("مرحباً، حوّلت مبلغ اشتراك بوردي 🍀\n")
-                                append("الباقة: ${orderPlanTitle.ifBlank { currentPlan.title }}\n")
-                                append("المبلغ: ${"%,d".format(finalAmount)} د.ع\n")
-                                append("طريقة التحويل: ${selectedMethod.name}\n")
-                                append("كود الطلب: $currentOrderId\n")
-                                append("كود الجهاز: $did\n")
-                                if (orderTxnRef.isNotBlank()) append("رقم العملية: ${orderTxnRef.trim()}\n")
-                                append("\nوهذه صورة الوصل 📸")
-                            }
-                            // A placeholder support number must not be dialed; fall back to WhatsApp's share sheet.
-                            val target = if (isSupportTargetValid(supportWhatsapp)) supportWhatsapp else ""
-                            val fullUrl = buildWhatsAppUrl(target, message)
-                            try {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(fullUrl))
-                                context.startActivity(intent)
-                            } catch (_: Exception) {
-                                Toast.makeText(context, "تعذر فتح واتساب مباشرة، انسخ التفاصيل وأرسلها", Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(50.dp)
-                            .bouncyClickable {},
-                        colors = ButtonDefaults.buttonColors(containerColor = SellGreen),
-                        shape = CircleShape
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_whatsapp),
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            tint = Color.White
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text("افتح واتساب وأرسل صورة الوصل", fontWeight = FontWeight.Bold, color = Color.White)
-                    }
-                }
-
-                // Sending the proof (and the attached receipt) is the primary action on both screens.
-                Button(
-                        onClick = {
-                            if (submittingProof) return@Button
-                            val methodName = selectedMethod.name
-                            val txn = orderTxnRef.trim()
-                            submittingProof = true
-                            scope.launch {
-                                // Prefer the compressed receipt kept on device; re-encode the pick if saving failed.
-                                val imageBase64 = withContext(Dispatchers.IO) {
-                                    LicenseStore.getReceiptBase64(context, currentOrderId)
-                                        ?: receiptUri?.let { ReceiptImage.prepare(context, it) }?.let(ReceiptImage::toBase64)
-                                        ?: ""
-                                }
-                                val resp = try {
-                                    LicenseApi.submitProof(did, currentOrderId, methodName, txn, imageBase64)
-                                } catch (_: Exception) { null }
-                                submittingProof = false
-
-                                val accepted = resp?.optBoolean("ok", false) == true
-                                // Keep the receipt on device either way so LicenseManager can retry it.
-                                LicenseStore.savePendingOrder(
-                                    context,
-                                    currentOrderId,
-                                    selectedPlanId,
-                                    orderPlanTitle.ifBlank { currentPlan.title },
-                                    finalAmount,
-                                    methodName,
-                                    txn.ifBlank { null },
-                                    submitted = accepted
-                                )
-                                waitingSubmitted = accepted
-
-                                val errorCode = errorCodeOf(resp)
-                                when {
-                                    accepted -> sheetError = null
-                                    resp == null -> {
-                                        sheetError = "لا يوجد اتصال بالإنترنت حالياً، يمكنك إرساله عند عودة الاتصال."
-                                    }
-                                    errorCode == "PROOF_TOO_LARGE" || errorCode == "INVALID_IMAGE" -> {
-                                        receiptError = errorMessageOf(resp) ?: "صورة الوصل غير مدعومة، اختر صورة JPG أو PNG"
-                                        sheetError = null
-                                        return@launch
-                                    }
-                                    errorCode == "RATE_LIMITED" -> {
-                                        sheetError = errorMessageOf(resp) ?: "تجاوزت عدد المحاولات، انتظر قليلاً وحاول مرة أخرى"
-                                        return@launch
-                                    }
-                                    errorCode == "ORDER_EXPIRED" || errorCode == "ORDER_NOT_FOUND" -> {
-                                        LicenseStore.clearPendingOrder(context)
-                                        showPaymentSheet = false
-                                        sheetStep = PaymentSheetStep.Instructions
-                                        checkoutError = errorMessageOf(resp) ?: "انتهت مدة الطلب، أنشئ طلباً جديداً"
-                                        step = PaywallStep.SelectPlan
-                                        return@launch
-                                    }
-                                    errorCode == "TXN_DUP" || errorCode == "METHOD_INVALID" || errorCode == "METHOD_REQUIRED" -> {
-                                        sheetError = errorMessageOf(resp) ?: "لم تُحفظ بيانات الحوالة، راجع المعلومات"
-                                        return@launch
-                                    }
-                                    else -> {
-                                        sheetError = errorMessageOf(resp) ?: "لم يُرسل الإثبات، حاول مرة أخرى"
-                                    }
-                                }
-
-                                showPaymentSheet = false
-                                sheetStep = PaymentSheetStep.Instructions
-                                step = PaywallStep.WaitingApproval
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .bouncyClickable(enabled = !submittingProof) {},
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (receiptReady) SellGreen else MaterialTheme.colorScheme.surfaceVariant,
-                            contentColor = if (receiptReady) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-                        ),
-                        shape = CircleShape
-                    ) {
-                        if (submittingProof) {
-                            CircularProgressIndicator(
-                                color = if (receiptReady) Color.White else SellGreen,
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            Text(
-                                text = if (receiptReady) "أرسل الوصل وتحقق الآن ✅"
-                                else "أُرسل — جارٍ الفحص والتفعيل ⏳",
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-
-                if (sheetStep == PaymentSheetStep.ScreenshotGuide) {
-                    TextButton(
-                        onClick = { sheetStep = PaymentSheetStep.Instructions }
-                    ) {
-                        Text("← العودة إلى تفاصيل رقم المحفظة", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(Modifier.height(8.dp))
                     }
                 }
 

@@ -3,12 +3,13 @@ import { attemptLogin, validateSession, validateCsrf, getCsrfToken, createSessio
 import { getSettings, setSetting, logEvent } from '../db';
 import { approveOrder, rejectOrder } from '../handlers/orders';
 import { SYNC_INTERVAL_MAX, SYNC_INTERVAL_MIN, clampSyncInterval, clampForegroundSync, clampTrialSeconds, FOREGROUND_SYNC_MIN, FOREGROUND_SYNC_MAX, TRIAL_MIN_SECONDS, TRIAL_MAX_SECONDS, clampExpiryNoticeUnit, clampExpiryNoticeValue, expiryNoticeEnabled, EXPIRY_NOTICE_UNITS } from '../handlers/config';
-import { formatBaghdadTime, normalizeCode, parseJsonBody, parsePaymentMethods } from '../utils';
+import { formatBaghdadTime, normalizeCode, normalizeBorderColor, parseJsonBody, parsePaymentMethods, paymentMethodId } from '../utils';
 import { normalizeVersionInput, canonicalVersion, isValidVersion } from '../version';
 import { handleAdminAccountsApi } from './accounts';
 import {
   apiUpdateStatus, apiUploadRelease, apiDeleteRelease, apiUpdateReleaseSettings,
 } from './releases';
+import { apiSavePaymentLogo } from '../handlers/payment-logo';
 
 /**
  * Handle all /admin/* routes.
@@ -116,6 +117,10 @@ export async function handleAdminPanel(request: Request, env: Env): Promise<Resp
 
   if (path === '/admin/api/settings' && request.method === 'POST') {
     return apiUpdateSettings(request, env);
+  }
+
+  if (path === '/admin/api/payment-logo' && request.method === 'POST') {
+    return apiSavePaymentLogo(request, env);
   }
 
   if (path === '/admin/api/update' && request.method === 'GET') {
@@ -521,13 +526,31 @@ button,.btn{padding:.5rem 1rem;border:none;border-radius:6px;cursor:pointer;font
             <label>ملاحظة (اختياري)</label>
             <input type="text" id="pm-note" placeholder="تظهر للمشترك أسفل رقم التحويل">
           </div>
+          <div class="form-group">
+            <label>صورة الطريقة (تظهر كإيقونة كبيرة في تطبيق المشترك)</label>
+            <div style="display:flex;align-items:center;gap:.75rem">
+              <img id="pm-logo-preview" alt="شعار الطريقة" style="display:none;width:64px;height:64px;object-fit:contain;background:#0f172a;border:1px solid #334155;border-radius:10px;padding:4px">
+              <div style="display:flex;flex-direction:column;gap:.4rem">
+                <input type="file" id="pm-logo-file" accept="image/*" onchange="pmPickLogo(this)" style="font-size:.8rem">
+                <button type="button" class="btn btn-secondary" onclick="pmRemoveLogo()" style="font-size:.72rem;align-self:flex-start">إزالة الصورة</button>
+              </div>
+            </div>
+            <small style="color:#94a3b8">تُصغَّر الصورة تلقائياً إلى 256 بكسل وتُرفع عند حفظ الطريقة.</small>
+          </div>
+          <div class="form-group">
+            <label>لون إطار الطريقة في التطبيق</label>
+            <div style="display:flex;align-items:center;gap:.5rem">
+              <input type="color" id="pm-color" value="#22c55e" style="width:52px;height:34px;padding:2px;background:#0f172a;border:1px solid #334155;border-radius:8px">
+              <small style="color:#94a3b8">يُلوَّن بها إطار بطاقة التحويل الخاصة بهذه الطريقة.</small>
+            </div>
+          </div>
           <div id="pm-error" style="color:#fca5a5;font-size:.8rem;min-height:1rem"></div>
           <div class="flex" style="gap:.5rem">
             <button type="button" class="btn btn-primary" onclick="savePaymentForm()">حفظ الطريقة</button>
             <button type="button" class="btn btn-secondary" onclick="closePaymentForm()">إلغاء</button>
           </div>
         </div>
-        <small style="color:#94a3b8;display:block;margin-top:.5rem">يظهر للمشترك اسم الطريقة ورقم التحويل والملاحظة فقط — لا حاجة لأي صيغة تقنية.</small>
+        <small style="color:#94a3b8;display:block;margin-top:.5rem">يظهر للمشترك صورة الطريقة (إيقونة) واسمها ورقم التحويل والملاحظة ولون الإطار — لا حاجة لأي صيغة تقنية.</small>
       </div>
       <script type="application/json" id="pm-initial">${JSON.stringify(parsePaymentMethods(settings.payment_methods)).replace(/</g, '\\u003c')}</script>
       <script>
@@ -537,11 +560,24 @@ button,.btn{padding:.5rem 1rem;border:none;border-radius:6px;cursor:pointer;font
           paymentMethodsData = Array.isArray(rawPm) ? rawPm : [];
         } catch (err) { paymentMethodsData = []; }
         let editingPaymentIndex = -1;
+        // null = untouched, 'remove' = delete on save, {dataUrl} = upload on save.
+        let pmLogoPending = null;
 
         function escPm(value) {
           return String(value == null ? '' : value)
             .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        function pmError(message) {
+          document.getElementById('pm-error').textContent = message;
+        }
+
+        function genPmId() {
+          let s = 'pm';
+          const hex = '0123456789abcdef';
+          for (let i = 0; i < 10; i++) s += hex[Math.floor(Math.random() * 16)];
+          return s;
         }
 
         function renderPaymentMethods() {
@@ -552,7 +588,11 @@ button,.btn{padding:.5rem 1rem;border:none;border-radius:6px;cursor:pointer;font
             return;
           }
           box.innerHTML = paymentMethodsData.map(function (m, i) {
-            return '<div style="display:flex;align-items:center;gap:.75rem;padding:.6rem .75rem;border:1px solid #334155;border-radius:10px">'
+            const logo = m.has_logo && m.id
+              ? '<img src="/v1/payment-logo?id=' + encodeURIComponent(m.id) + '&t=' + Date.now() + '" alt="" style="width:44px;height:44px;object-fit:contain;background:#0f172a;border:1px solid #334155;border-radius:10px;padding:3px">'
+              : '<div style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:#0f172a;border:1px solid #334155;border-radius:10px;font-weight:700;color:#94a3b8">' + escPm((m.name || '?').charAt(0)) + '</div>';
+            return '<div style="display:flex;align-items:center;gap:.75rem;padding:.6rem .75rem;border:1px solid ' + escPm(m.border_color || '#334155') + ';border-radius:10px">'
+              + logo
               + '<div style="flex:1;min-width:0">'
               + '<div style="font-weight:600">' + escPm(m.name) + '</div>'
               + '<div style="font-family:monospace;font-size:.85rem" dir="ltr">' + escPm(m.account) + '</div>'
@@ -567,32 +607,107 @@ button,.btn{padding:.5rem 1rem;border:none;border-radius:6px;cursor:pointer;font
         function openPaymentForm(index) {
           editingPaymentIndex = typeof index === 'number' ? index : -1;
           const current = editingPaymentIndex >= 0 ? paymentMethodsData[editingPaymentIndex] : null;
+          pmLogoPending = null;
+          document.getElementById('pm-logo-file').value = '';
           document.getElementById('pm-name').value = current ? current.name : '';
           document.getElementById('pm-account').value = current ? current.account : '';
           document.getElementById('pm-note').value = current && current.note ? current.note : '';
-          document.getElementById('pm-error').textContent = '';
+          document.getElementById('pm-color').value = current && current.border_color ? current.border_color : '#22c55e';
+          const preview = document.getElementById('pm-logo-preview');
+          if (current && current.has_logo && current.id) {
+            preview.src = '/v1/payment-logo?id=' + encodeURIComponent(current.id) + '&t=' + Date.now();
+            preview.style.display = 'block';
+          } else {
+            preview.removeAttribute('src');
+            preview.style.display = 'none';
+          }
+          pmError('');
           document.getElementById('pm-form').style.display = 'block';
           document.getElementById('pm-name').focus();
         }
 
         function closePaymentForm() {
           editingPaymentIndex = -1;
+          pmLogoPending = null;
           document.getElementById('pm-form').style.display = 'none';
         }
 
-        function savePaymentForm() {
+        function pmPickLogo(input) {
+          const file = input.files && input.files[0];
+          input.value = '';
+          if (!file) return;
+          if (!/^image\//.test(file.type || '')) { pmError('اختر ملف صورة (PNG أو JPG)'); return; }
+          const img = new Image();
+          img.onload = function () {
+            URL.revokeObjectURL(img.src);
+            const max = 256;
+            let w = img.naturalWidth || max, h = img.naturalHeight || max;
+            if (w > max || h > max) {
+              const scale = Math.min(max / w, max / h);
+              w = Math.max(1, Math.round(w * scale));
+              h = Math.max(1, Math.round(h * scale));
+            }
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+            pmLogoPending = { dataUrl: canvas.toDataURL('image/png') };
+            const preview = document.getElementById('pm-logo-preview');
+            preview.src = pmLogoPending.dataUrl;
+            preview.style.display = 'block';
+            pmError('');
+          };
+          img.onerror = function () { URL.revokeObjectURL(img.src); pmError('تعذر قراءة الصورة'); };
+          img.src = URL.createObjectURL(file);
+        }
+
+        function pmRemoveLogo() {
+          pmLogoPending = 'remove';
+          const preview = document.getElementById('pm-logo-preview');
+          preview.removeAttribute('src');
+          preview.style.display = 'none';
+        }
+
+        async function savePaymentForm() {
           const name = document.getElementById('pm-name').value.trim();
           const account = document.getElementById('pm-account').value.trim();
           const note = document.getElementById('pm-note').value.trim();
+          const color = document.getElementById('pm-color').value;
           if (!name || !account) {
-            document.getElementById('pm-error').textContent = 'اسم الطريقة ورقم التحويل مطلوبان.';
+            pmError('اسم الطريقة ورقم التحويل مطلوبان.');
             return;
           }
-          const entry = { name: name, account: account, note: note };
-          if (editingPaymentIndex >= 0) paymentMethodsData[editingPaymentIndex] = entry;
-          else paymentMethodsData.push(entry);
-          closePaymentForm();
-          renderPaymentMethods();
+          let entry;
+          if (editingPaymentIndex >= 0) {
+            entry = Object.assign({}, paymentMethodsData[editingPaymentIndex], { name: name, account: account, note: note, border_color: color });
+          } else {
+            entry = { id: genPmId(), name: name, account: account, note: note, border_color: color, has_logo: false };
+          }
+          const saveBtn = document.querySelector('#pm-form .btn-primary');
+          if (saveBtn) saveBtn.disabled = true;
+          try {
+            if (pmLogoPending === 'remove') {
+              const res = await api('payment-logo', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: entry.id, logo_data: '' })
+              });
+              if (!res.ok) { pmError(res.error || 'تعذر حذف الصورة'); return; }
+              entry.has_logo = false;
+            } else if (pmLogoPending && pmLogoPending.dataUrl) {
+              const res = await api('payment-logo', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: entry.id, logo_data: pmLogoPending.dataUrl })
+              });
+              if (!res.ok) { pmError(res.error || 'تعذر رفع الصورة'); return; }
+              entry.has_logo = true;
+            }
+            if (editingPaymentIndex >= 0) paymentMethodsData[editingPaymentIndex] = entry;
+            else paymentMethodsData.push(entry);
+            closePaymentForm();
+            renderPaymentMethods();
+          } finally {
+            if (saveBtn) saveBtn.disabled = false;
+          }
         }
 
         function deletePaymentMethod(index) {
@@ -2341,11 +2456,22 @@ async function apiUpdateSettings(request: Request, env: Env): Promise<Response> 
     }
     const clean = parsed
       .filter((m: any) => m && typeof m.name === 'string' && m.name.trim() && typeof m.account === 'string' && m.account.trim())
-      .map((m: any) => ({
-        name: String(m.name).trim(),
-        account: String(m.account).trim(),
-        note: typeof m.note === 'string' ? m.note.trim() : '',
-      }));
+      .map((m: any) => {
+        const name = String(m.name).trim();
+        const account = String(m.account).trim();
+        // ids and logo bytes never travel through this payload; the logo lives in
+        // its own settings key (payment_logo:<id>) managed by /admin/api/payment-logo.
+        return {
+          id: typeof m.id === 'string' && /^[a-z0-9_-]{1,40}$/.test(m.id.trim())
+            ? m.id.trim().toLowerCase()
+            : paymentMethodId(name, account),
+          name,
+          account,
+          note: typeof m.note === 'string' ? m.note.trim() : '',
+          border_color: normalizeBorderColor(m.border_color),
+          has_logo: m.has_logo === true,
+        };
+      });
     if (clean.length === 0) {
       return Response.json({ ok: false, error: 'أضف طريقة دفع واحدة على الأقل (name و account)' }, { status: 400 });
     }

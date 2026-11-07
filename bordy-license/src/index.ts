@@ -7,6 +7,7 @@ import { handleGetTos } from './handlers/tos';
 import { handleGetUpdate } from './handlers/update';
 import { handleCheckCode, handleRedeem } from './handlers/codes';
 import { handleCreateOrder, handleSubmitProof, handleGetOrder, handleCancelOrder } from './handlers/orders';
+import { handleGetPaymentLogo } from './handlers/payment-logo';
 import { handleTransferRequest } from './handlers/transfer';
 import { handleTelegramWebhook } from './telegram';
 import { handleAdminPanel } from './admin/panel';
@@ -109,6 +110,11 @@ export default {
         if (method === 'POST' && subPath === '/cancel') {
           return handleCancelOrder(request, env, orderId);
         }
+      }
+
+      // Payment method logo
+      if (method === 'GET' && path === '/v1/payment-logo') {
+        return handleGetPaymentLogo(request, env);
       }
 
       // Transfer

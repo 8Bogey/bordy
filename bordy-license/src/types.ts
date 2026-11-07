@@ -124,7 +124,10 @@ export interface EventRow {
 }
 
 export interface PaymentMethod {
+  id: string;
   name: string;
   account: string;
   note: string;
+  border_color: string;
+  has_logo: boolean;
 }

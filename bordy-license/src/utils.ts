@@ -61,11 +61,37 @@ export function errorResponse(error: string, status = 400, code?: string): Respo
 
 /**
  * Payment methods configured in settings, defensively parsed.
+ * `id` is a stable identifier used to fetch the method logo (settings key `payment_logo:<id>`).
  */
 export interface PaymentMethodInfo {
+  id: string;
   name: string;
   account: string;
   note: string;
+  border_color: string;
+  has_logo: boolean;
+}
+
+/** Stable id derived from name+account (FNV-1a) for rows saved before ids existed. */
+export function paymentMethodId(name: string, account: string): string {
+  const input = `${name}|${account}`;
+  let h = 0x811c9dc5;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return 'pm' + h.toString(16);
+}
+
+/** Accepts #rgb / #rrggbb, returns lowercase #rrggbb or '' when invalid. */
+export function normalizeBorderColor(raw: unknown): string {
+  if (typeof raw !== 'string') return '';
+  const value = raw.trim().toLowerCase();
+  if (/^#[0-9a-f]{3}$/.test(value)) {
+    return '#' + value[1] + value[1] + value[2] + value[2] + value[3] + value[3];
+  }
+  if (/^#[0-9a-f]{6}$/.test(value)) return value;
+  return '';
 }
 
 export function parsePaymentMethods(raw: string | null | undefined): PaymentMethodInfo[] {
@@ -74,11 +100,21 @@ export function parsePaymentMethods(raw: string | null | undefined): PaymentMeth
     if (!Array.isArray(parsed)) return [];
     return parsed
       .filter((m: any) => m && typeof m.name === 'string' && m.name.trim() && typeof m.account === 'string' && m.account.trim())
-      .map((m: any) => ({
-        name: String(m.name).trim(),
-        account: String(m.account).trim(),
-        note: typeof m.note === 'string' ? m.note : '',
-      }));
+      .map((m: any) => {
+        const name = String(m.name).trim();
+        const account = String(m.account).trim();
+        const id = typeof m.id === 'string' && /^[a-z0-9_-]{1,40}$/i.test(m.id.trim())
+          ? m.id.trim().toLowerCase()
+          : paymentMethodId(name, account);
+        return {
+          id,
+          name,
+          account,
+          note: typeof m.note === 'string' ? m.note : '',
+          border_color: normalizeBorderColor(m.border_color),
+          has_logo: m.has_logo === true,
+        };
+      });
   } catch {
     return [];
   }

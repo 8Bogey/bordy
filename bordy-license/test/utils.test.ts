@@ -64,10 +64,25 @@ describe('parsePaymentMethods', () => {
       { name: '', account: '1' },
       { name: 'FIB', account: 'IQ00' },
     ]);
-    expect(parsePaymentMethods(raw)).toEqual([
-      { name: 'زين كاش', account: '0770', note: 'تحويل' },
-      { name: 'FIB', account: 'IQ00', note: '' },
+    const parsed = parsePaymentMethods(raw);
+    expect(parsed).toHaveLength(2);
+    expect(parsed[0]).toMatchObject({ name: 'زين كاش', account: '0770', note: 'تحويل', border_color: '', has_logo: false });
+    expect(parsed[0].id).toMatch(/^pm[0-9a-f]+$/);
+    expect(parsed[1]).toMatchObject({ name: 'FIB', account: 'IQ00', note: '', border_color: '', has_logo: false });
+    expect(parsed[1].id).toMatch(/^pm[0-9a-f]+$/);
+    expect(parsed[0].id).not.toBe(parsed[1].id);
+  });
+
+  it('carries id, border color and has_logo through', () => {
+    const raw = JSON.stringify([
+      { id: 'ZainCash', name: 'زين كاش', account: '0770', border_color: '#ABC', has_logo: true },
+      { id: 'bad id!', name: 'FIB', account: 'IQ00', border_color: 'red', has_logo: true },
     ]);
+    const parsed = parsePaymentMethods(raw);
+    expect(parsed[0]).toEqual({ id: 'zaincash', name: 'زين كاش', account: '0770', note: '', border_color: '#aabbcc', has_logo: true });
+    expect(parsed[1].id).toMatch(/^pm[0-9a-f]+$/);
+    expect(parsed[1].border_color).toBe('');
+    expect(parsed[1].has_logo).toBe(true);
   });
 });
 

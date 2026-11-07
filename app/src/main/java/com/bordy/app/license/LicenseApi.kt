@@ -57,10 +57,17 @@ data class DiscountInfo(
 }
 
 data class PaymentMethod(
+    val id: String,
     val name: String,
     val account: String,
-    val note: String
-)
+    val note: String,
+    val borderColor: String,
+    val hasLogo: Boolean
+) {
+    /** URL of the admin-assigned logo, or null when the method has none. */
+    fun logoUrl(baseUrl: String): String? =
+        if (hasLogo && id.isNotBlank()) "$baseUrl/v1/payment-logo?id=$id" else null
+}
 
 data class OrderStatusResponse(
     val ok: Boolean,
@@ -130,7 +137,15 @@ fun parsePaymentMethods(arr: org.json.JSONArray?): List<PaymentMethod> {
         val m = arr.optJSONObject(i) ?: return@mapNotNull null
         val name = m.optNullableString("name") ?: return@mapNotNull null
         val account = m.optNullableString("account") ?: return@mapNotNull null
-        PaymentMethod(name = name, account = account, note = m.optNullableString("note") ?: "")
+        val color = m.optNullableString("border_color")?.takeIf { it.matches(Regex("#[0-9a-fA-F]{6}")) } ?: ""
+        PaymentMethod(
+            id = m.optNullableString("id") ?: "",
+            name = name,
+            account = account,
+            note = m.optNullableString("note") ?: "",
+            borderColor = color,
+            hasLogo = m.optBoolean("has_logo", false)
+        )
     }
 }
 
